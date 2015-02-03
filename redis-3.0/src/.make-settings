@@ -1,0 +1,10 @@
+STD=-std=c99 -pedantic
+WARN=-Wall
+OPT=-O2
+MALLOC=jemalloc
+CFLAGS=
+LDFLAGS=
+REDIS_CFLAGS=
+REDIS_LDFLAGS=
+PREV_FINAL_CFLAGS=-std=c99 -pedantic -Wall -O2 -g -ggdb -I../deps/hiredis -I../deps/linenoise -I../deps/lua/src -DUSE_JEMALLOC -I../deps/jemalloc/include
+PREV_FINAL_LDFLAGS= -g -ggdb -rdynamic

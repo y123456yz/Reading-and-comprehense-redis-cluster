@@ -11,6 +11,11 @@ redis-2.9.11阅读理解，带详细注释
 参考数据<redis涉及实现>
 
 
+阅读工具source insight,如果中文乱码，按照source insight configure目录中说明操作
+
+
+本代码解决了huangz1990原始代码source insight中文乱码问题
+
 阅读redis源码目的？
     了解内存数据库相关优秀数据结构，由于前期已经通读完毕nginx源码，阅读redis源码是为了配合nginx来实现静态资源加速，为后期提升nginx性能做准备。
 	

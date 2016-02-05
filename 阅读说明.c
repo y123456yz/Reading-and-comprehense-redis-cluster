@@ -1,7 +1,7 @@
 # reading-redis-2.9.11
 redis-2.9.11阅读理解，带详细注释
 
-本份代码从https://github.com/huangz1990/annotated_redis_source clone下来，然后自己添加自己的理解，再次基础上增加函数调用流程注释。
+本份代码从https://github.com/huangz1990/redis-3.0-annotated clone下来，然后自己添加自己的理解，再次基础上增加函数调用流程注释。
 参考数据<redis涉及实现>
 
 

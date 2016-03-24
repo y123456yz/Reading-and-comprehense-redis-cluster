@@ -834,10 +834,11 @@ void freeFakeClient(struct redisClient *c) {
  * 出现非执行错误（比如文件长度为 0 ）时返回 REDIS_ERR 。 *
  * 出现致命错误时打印信息到日志，并且程序退出。
  */
-int loadAppendOnlyFile(char *filename) {
+int loadAppendOnlyFile(char *filename) { 
+//rdbLoad是直接读取rdb文件内容中的key-value存入redisDb，而loadAppendOnlyFile通过伪客户端来执行，因为需要一条命令一条命令的恢复执行
 
     // 为客户端
-    struct redisClient *fakeClient;
+    struct redisClient *fakeClient; 
 
      // 打开 AOF 文件
     FILE *fp = fopen(filename,"r");

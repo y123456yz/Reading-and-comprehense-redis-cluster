@@ -79,6 +79,7 @@ void resetServerSaveParams() {
     server.saveparamslen = 0;
 }
 
+//sentinelcmds  redisCommandTable  配置文件加载见loadServerConfigFromString 
 void loadServerConfigFromString(char *config) {
     char *err = NULL;
     int linenum = 0, totlines, i;
@@ -308,7 +309,8 @@ void loadServerConfigFromString(char *config) {
             if ((server.repl_slave_ro = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
-        } else if (!strcasecmp(argv[0],"rdbcompression") && argc == 2) {
+        } else if (!strcasecmp(argv[0],"rdbcompression") && argc == 2) { 
+            //在把key-value对写入rdb文件的时候是否进行压缩
             if ((server.rdb_compression = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
@@ -522,7 +524,7 @@ void loadServerConfigFromString(char *config) {
                 goto loaderr;
             }
             server.notify_keyspace_events = flags;
-        } else if (!strcasecmp(argv[0],"sentinel")) {
+        } else if (!strcasecmp(argv[0],"sentinel")) { //sentinel配置文件加载见sentinelHandleConfiguration，sentinel命令见sentinelHandleConfiguration
             /* argc == 1 is handled by main() as we need to enter the sentinel
              * mode ASAP. */
             // 如果 SENTINEL 命令不为空，那么执行以下代码

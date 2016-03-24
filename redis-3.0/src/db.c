@@ -1540,7 +1540,7 @@ void propagateExpire(redisDb *db, robj *key) { //键过期后需要让所有从redis数据库
  * 返回 0 表示键没有过期时间，或者键未过期。
  *
  * 返回 1 表示键已经因为过期而被删除了。
- */
+ */ //注意activeExpireCycle(定期删除)和freeMemoryIfNeeded(如果配置了最大内存，则会进行内存检查)  expireIfNeeded(被动惰性删除，由对该键操作的时候进行判断是否超时)的区别
 int expireIfNeeded(redisDb *db, robj *key) {
 
     // 取出键的过期时间

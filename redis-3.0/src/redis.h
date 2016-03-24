@@ -249,7 +249,6 @@ REDIS_SET       REDIS_ENCODING_INTSET Ê¹ÓÃÕûÊı¼¯ºÏÊµÏÖµÄ¼¯ºÏ¶ÔÏó¡£
 REDIS_SET       REDIS_ENCODING_HT Ê¹ÓÃ×ÖµäÊµÏÖµÄ¼¯ºÏ¶ÔÏó¡£ 
 REDIS_ZSET      REDIS_ENCODING_ZIPLIST Ê¹ÓÃÑ¹ËõÁĞ±íÊµÏÖµÄÓĞĞò¼¯ºÏ¶ÔÏó¡£ 
 REDIS_ZSET      REDIS_ENCODING_SKIPLIST Ê¹ÓÃÌøÔ¾±íºÍ×ÖµäÊµÏÖµÄÓĞĞò¼¯ºÏ¶ÔÏó¡£ 
-
 */
 
 /* Object types */
@@ -422,7 +421,6 @@ Redis ¿ÉÒÔ¸ù¾İ²»Í¬µÄÊ¹ÓÃ³¡¾°À´ÎªÒ»¸ö¶ÔÏóÉèÖÃ²»Í¬µÄ±àÂë£¬ ´Ó¶øÓÅ»¯¶ÔÏóÔÚÄ³Ò»³¡¾°Ï
 #define REDIS_ENCODING_HT 2      /* Encoded as hash table */
 //RedisÒıÈëÁËzipmapÊı¾İ½á¹¹£¬±£Ö¤ÔÚhashtable¸Õ´´½¨ÒÔ¼°ÔªËØ½ÏÉÙÊ±£¬ÓÃ¸üÉÙµÄÄÚ´æÀ´´æ´¢£¬Í¬Ê±¶Ô²éÑ¯µÄĞ§ÂÊÒ²²»»áÊÜÌ«´óµÄÓ°Ïì
 #define REDIS_ENCODING_ZIPMAP 3  /* Encoded as zipmap */
-
 
 /*
 ±àÂë×ª»»
@@ -713,7 +711,7 @@ typedef long long mstime_t; /* millisecond time type. */
     ½ÚµãµÄkeyºÍvalueÖĞ¿ÉÒÔ²Î¿¼dict->type( typeÎªxxxDictType ÀıÈçkeyptrDictTypeµÈ) £¬¼ûdictCreate
 */
 
-typedef struct redisObject {//zskiplistNodeÖĞ»á°üº¬¸Ã»ú¹¹
+typedef struct redisObject { 
 
     /*
      REDIS_STRING ×Ö·û´®¶ÔÏó 
@@ -1350,7 +1348,7 @@ struct redisServer {//struct redisServer server;
     // ÅäÖÃÎÄ¼şµÄ¾ø¶ÔÂ·¾¶
     char *configfile;           /* Absolute config file path, or NULL */
 
-    // serverCron() Ã¿Ãëµ÷ÓÃµÄ´ÎÊı  Ä¬ÈÏÎªREDIS_DEFAULT_HZ
+    // serverCron() Ã¿Ãëµ÷ÓÃµÄ´ÎÊı  Ä¬ÈÏÎªREDIS_DEFAULT_HZ  ±íÊ¾Ã¿ÃëÔËĞĞserverCron¶àÉÙ´Î   ¿ÉÒÔÓÉÅäÖÃÎÄ¼şÖĞµÄhz½øĞĞÅäÖÃÔËĞĞ´ÎÊı
     int hz;                     /* serverCron() calls frequency in hertz */
 
     // Êı¾İ¿â selectDb¸³Öµ£¬Ã¿´ÎºÍ¿Í»§¶Ë¶ÁÈ¡½»»¥µÄÊ±ºò£¬¶¼ÓĞ¶ÔÓ¦µÄselect xÃüÁî¹ıÀ´
@@ -1358,6 +1356,7 @@ struct redisServer {//struct redisServer server;
 
     //ÃüÁî±í×ÖµäÖĞµÄÔªËØÄÚÈİ´ÓredisCommandTableÖĞ»ñÈ¡£¬¼ûpopulateCommandTable  Êµ¼Ê¿Í»§¶ËÃüÁîµÄ²éÕÒÔÚº¯ÊılookupCommandOrOriginal lookupCommandÖĞ
     // ÃüÁî±í£¨ÊÜµ½ rename ÅäÖÃÑ¡ÏîµÄ×÷ÓÃ£©  ²Î¿¼commandTableDictType¿ÉÒÔ¿´³ö¸Ãdict¶ÔÓ¦µÄkey±È½ÏÊÇ²»Çø·Ö´óĞ¡Ğ´µÄ
+    //Èç¹ûÊÇsentinel·½Ê½Æô¶¯£¬Ôò»¹»á´ÓsentinelcmdsÖĞ»ñÈ¡£¬²Î¿¼initSentinel
     dict *commands;             /* Command table */
     // ÃüÁî±í£¨ÎŞ rename ÅäÖÃÑ¡ÏîµÄ×÷ÓÃ£© 
     //redisServer->orig_commands redisServer->commands(¼ûpopulateCommandTable)ÃüÁî±í×ÖµäÖĞµÄÔªËØÄÚÈİ´ÓredisCommandTableÖĞ»ñÈ¡£¬¼ûpopulateCommandTable
@@ -1408,12 +1407,13 @@ struct redisServer {//struct redisServer server;
     // ±¾·şÎñÆ÷µÄ RUN ID
     char runid[REDIS_RUN_ID_SIZE+1];  /* ID always different at every exec. */
 
-    // ·şÎñÆ÷ÊÇ·ñÔËĞĞÔÚ SENTINEL Ä£Ê½
+    // ·şÎñÆ÷ÊÇ·ñÔËĞĞÔÚ SENTINEL Ä£Ê½   ¼ûcheckForSentinelMode
     int sentinel_mode;          /* True if this instance is a Sentinel. */
 
 
     /* Networking */
 
+    //¿ÉÒÔÓÉÆô¶¯redisµÄÃüÁîĞĞ¸³Öµ£¬Ä¬ÈÏREDIS_SERVERPORT   Èç¹ûÊÇSentinel·½Ê½Æô¶¯£¬ÔòÖµÎªREDIS_SENTINEL_PORT
     // TCP ¼àÌı¶Ë¿Ú port²ÎÊıÅäÖÃ  ±íÊ¾×÷Îª·şÎñÆ÷¶Ë£¬µÈ´ıredis-cli¿Í»§¶ËÁ¬½ÓµÄÊ±ºò£¬·şÎñÆ÷¶ËµÄ¼àÌı¶Ë¿Ú£¬¼ûinitServer listenToPort(server.port,server.ipfd,&server.ipfd_count) == REDIS_ERR)
     int port;                   /* TCP listening port */
 
@@ -1687,7 +1687,7 @@ saveparamsÊôĞÔÊÇÒ»¸öÊı×é£¬Êı×éÖĞµÄÃ¿¸öÔªËØ¶¼ÊÇÒ»¸ösaveparam½á¹¹£¬Ã¿¸ösaveparam½á
     struct saveparam *saveparams;   /* Save points array for RDB */
     int saveparamslen;              /* Number of saving points */
     char *rdb_filename;             /* Name of RDB file */ //dbfilename XXXÅäÖÃ  Ä¬ÈÏREDIS_DEFAULT_RDB_FILENAME
-    int rdb_compression;            /* Use compression in RDB? */
+    int rdb_compression;            /* Use compression in RDB? */ //rdbcompression  yes | off
     //Ä¬ÈÏ1£¬¼ûREDIS_DEFAULT_RDB_CHECKSUM
     int rdb_checksum;               /* Use RDB checksum? */
 

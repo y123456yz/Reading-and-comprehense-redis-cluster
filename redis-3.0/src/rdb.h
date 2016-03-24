@@ -87,7 +87,7 @@
 #define REDIS_RDB_ENC_INT8 0        /* 8 bit signed integer */
 #define REDIS_RDB_ENC_INT16 1       /* 16 bit signed integer */
 #define REDIS_RDB_ENC_INT32 2       /* 32 bit signed integer */
-#define REDIS_RDB_ENC_LZF 3         /* string compressed with FASTLZ */
+#define REDIS_RDB_ENC_LZF 3         /* string compressed with FASTLZ *///key-value存入数据库的时候按照压缩方式存储
 
 /* Dup object types to RDB object types. Only reason is readability (are we
  * dealing with RDB types or with in-memory object types?).

@@ -176,7 +176,7 @@ typedef struct sentinelAddr {
 
 // Sentinel 会为每个被监视的 Redis 实例创建相应的 sentinelRedisInstance 实例
 // （被监视的实例可以是主服务器、从服务器、或者其他 Sentinel ）
-typedef struct sentinelRedisInstance {
+typedef struct sentinelRedisInstance { //该结构节点存在于sentinelState->master字典中
     
     // 标识值，记录了实例的类型，以及该实例的当前状态
     int flags;      /* See SRI_... defines */
@@ -190,7 +190,7 @@ typedef struct sentinelRedisInstance {
     // 实例的运行 ID
     char *runid;    /* run ID of this instance. */
 
-    // 配置纪元，用于实现故障转移
+    // 配置纪元，用于实现故障转移 /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     uint64_t config_epoch;  /* Configuration epoch. */
 
     // 实例的地址
@@ -270,6 +270,12 @@ typedef struct sentinelRedisInstance {
     mstime_t slave_conf_change_time; /* Last time slave master addr changed. */
 
     /* Master specific. */
+    /*
+    Sentinel为主服务器创建的实例结构中的sentinels字典保存了除Sentinel本身之外，所有同样监视这个主服务器的其他Sentinel的资料：
+    sentinels字典的键是其中一个Sentinel的名字，格式为ip:port．比如对于IP地址为127.0.0.1．端口号为26379的Sentinel来说，这个Sentinel在sentinels字典中的键就是"127.0.0.1：26379"。
+    sentinels字典的值则是键所对应Sentinel的实例结构,及sentinelRedisInstance
+     */
+    
     /* 主服务器实例特有的属性 -------------------------------------------------------------*/
 
     // 其他同样监控这个主服务器的所有 sentinel
@@ -281,7 +287,7 @@ typedef struct sentinelRedisInstance {
     dict *slaves;       /* Slaves for this master instance. */
 
     // SENTINEL monitor <master-name> <IP> <port> <quorum> 选项中的 quorum 参数
-    // 判断这个实例为客观下线（objectively down）所需的支持投票数量
+    // 判断这个实例为客观下线（objectively down）所需的支持投票数量   至少要有几个sentinel服务器判定该主服务器下线
     int quorum;         /* Number of sentinels that need to agree on failure. */
 
     // SENTINEL parallel-syncs <master-name> <number> 选项的值
@@ -367,7 +373,7 @@ typedef struct sentinelRedisInstance {
 /* Sentinel 的状态结构 */
 struct sentinelState {
 
-    // 当前纪元
+    // 当前纪元  用于实现故障转移 /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     uint64_t current_epoch;     /* Current epoch. */
 
     // 保存了所有被这个 sentinel 监视的主服务器
@@ -377,7 +383,7 @@ struct sentinelState {
                            Key is the instance name, value is the
                            sentinelRedisInstance structure pointer. */
 
-    // 是否进入了 TILT 模式？
+    // 是否进入了 TILT 模式？  所谓TITL模式即只收集数据，而不做fail-over
     int tilt;           /* Are we in TILT mode? */
 
     // 目前正在执行的脚本的数量
@@ -613,10 +619,10 @@ void sentinelInfoCommand(redisClient *c);
 void sentinelSetCommand(redisClient *c);
 void sentinelPublishCommand(redisClient *c);
 
-// 服务器在 sentinel 模式下可执行的命令
+// 服务器在 sentinel 模式下可执行的命令  //sentinelcmds  redisCommandTable  配置文件加载见loadServerConfigFromString 
 struct redisCommand sentinelcmds[] = {
     {"ping",pingCommand,1,"",0,NULL,0,0,0,0,0},
-    {"sentinel",sentinelCommand,-2,"",0,NULL,0,0,0,0,0},
+    {"sentinel",sentinelCommand,-2,"",0,NULL,0,0,0,0,0}, //sentinel配置文件加载见sentinelHandleConfiguration，sentinel命令见sentinelHandleConfiguration
     {"subscribe",subscribeCommand,-2,"",0,NULL,0,0,0,0,0},
     {"unsubscribe",unsubscribeCommand,-1,"",0,NULL,0,0,0,0,0},
     {"psubscribe",psubscribeCommand,-2,"",0,NULL,0,0,0,0,0},
@@ -1838,14 +1844,17 @@ void sentinelPropagateDownAfterPeriod(sentinelRedisInstance *master) {
 
 /* ============================ Config handling ============================= */
 
-// Sentinel 配置文件分析器
+// Sentinel 配置文件分析器 //sentinel配置文件加载见sentinelHandleConfiguration，所有配置文件加载见loadServerConfigFromStringsentinel，命令见sentinelHandleConfiguration
 char *sentinelHandleConfiguration(char **argv, int argc) {
     sentinelRedisInstance *ri;
 
     // SENTINEL monitor 选项
     if (!strcasecmp(argv[0],"monitor") && argc == 5) {
         /* monitor <name> <host> <port> <quorum> */
-
+        /*
+        sentinel  monitor  master  127.0.0.1 6379 2
+    那么包括当前Sentinel在内，只要总共有两个Sentinel认为主服务器已经进入下线状态，那么当前Sentinel就将主服务器判断为客观下线
+         */
         // 读入 quorum 参数
         int quorum = atoi(argv[4]);
 
@@ -3375,7 +3384,54 @@ void sentinelCommand(redisClient *c) {
             return;
         addReplyDictOfRedisInstances(c,ri->sentinels);
     } else if (!strcasecmp(c->argv[1]->ptr,"is-master-down-by-addr")) {
-        /* SENTINEL IS-MASTER-DOWN-BY-ADDR <ip> <port> <current-epoch> <runid>*/
+    /*
+    SENTINEL is-master-down-by-addr <ip> <port><current_epoch> <runid>
+命令询问其他Sentinel是否同意主服务器已下线，命令中的各个参数的意义如表所示。
+┏━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃    参  数    ┃    意  义                                                                        ┃
+┣━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃    ip        ┃    被Sentinel判断为主观下线的主服务器的球地址                                    ┃
+┣━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃    port      ┃    被Sentinel判断为主观下线的主服务器韵端口号                                    ┃
+┣━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃current_epoch ┃    Sentinel当前的配置纪元，用于选举领头Sentinel                                  ┃
+┣━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃              ┃    可以是符号*或者Sentinel的运行ID:*符号代表命令仅仅用于检测主服务器的客观下线   ┃
+┃    runid     ┃                                                                                  ┃
+┃              ┃状态，而Sentinel的运行ID则用于选举领头Sentinel，详细作用将在下—节说明            ┃
+┗━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+    当一个Sentinel（目标Sentinel）接收到另一个Sentinel（源Sentinel）发来的SENTINEL is-master-down-by命令时，目标Sentinel会分析
+并取出命令请求中包含的各个参数，并根据其中的主服务器IP和端口号，检查主服务器是否已下线，然后向源Sentinel返回一
+    条包含三个参数的Multi Bulk回复作为SENTINEL is-master-down-by命令的回复：
+        1) <down—state>
+        2)<leader—runid>
+        3)<leader_epoch>
+    表 SENTINEL is-master-down-by-addr回复的意义
+    ┏━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃    参  数      ┃    意  义                                                                          ┃
+    ┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+    ┃    down state  ┃    返回目标sentinel对主服务器的检测结果，l代表主服务器已下线．0代表主服务器未下线  ┃
+    ┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+    ┃leader runid    ┃    可以是*符号或者目标Sentinel的局部领头Sentinel的运行ID:*符号代表命令仅仅用于     ┃
+    ┃                ┃检测主服务器的下线状态，而局部领头Sentincl的运行ID则用于选举领头Sentincl            ┃
+    ┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+    ┃leader_epoch    ┃    目标Sentinel的局部领头Sentinel的配置纪元，用于选举领头Sentinel．详细作用将在下  ┃
+    ┃                ┃一节说明。仅在leader runid的值不为*时有效，如果leader runid的值为*，那么            ┃
+    ┃                ┃leader_epoch总为0                                                                   ┃
+    ┗━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+        举个例子，如果一个Sentinel返回以下回复作为SENTINEL is-master-down-by-addr命令的回复：
+        1)  1
+        2)  *
+        3)  0
+        那么说明Sentinel也同意主服务器已下线。
+
+   根据其他Sentinel发回的SENTINEL is-master-down-by-addr命令回复，Sentinel将统计其他Sentinel同意主服务器已下线的数量，当这一数量
+达到配置指定的判断容观下线所需的数量时，Sentinel会将主服务器实例结构flags属性的SRI_O_DOWN标识打开，表示主服务器已经进入客观下线状态
+
+    sentinel  monitor  master  127.0.0.1 6379 2
+那么包括当前Sentinel在内，只要总共有两个Sentinel认为主服务器已经进入下线状态，那么当前Sentinel就将主服务器判断为客观下线
+    */   /* SENTINEL IS-MASTER-DOWN-BY-ADDR <ip> <port> <current-epoch> <runid>*/
         sentinelRedisInstance *ri;
         long long req_epoch;
         uint64_t leader_epoch = 0;

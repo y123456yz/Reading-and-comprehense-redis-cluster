@@ -390,7 +390,7 @@ int pubsubUnsubscribeAllPatterns(redisClient *c, int notify) {
 
  pubsubPublishMessage函数是PUBLISH命令的实现函数，执行这个函数
 等同于执行PUBLISH命令，订阅数据库通知的客户端收到的信息就是由这个函数发出的
- */
+ */ //publish 命令的实现函数，执行该函数相当于客户端向redis服务器发送publish命令
 int pubsubPublishMessage(robj *channel, robj *message) {
     int receivers = 0;
     dictEntry *de;

@@ -1121,7 +1121,7 @@ int rdbSaveBackground(char *filename) {
             }
         }
 
-        // 向父进程发送信号
+        // 向父进程发送信号  和定时器循环函数serverCron->wait3对应
         exitFromChild((retval == REDIS_OK) ? 0 : 1); //rdbSave成功发送0信号，失败发送1信号
 
     } else {
@@ -1630,6 +1630,8 @@ void rdbLoadProgressCallback(rio *r, const void *buf, size_t len) {
 /*
  * 将给定 rdb 中保存的数据载入到数据库中。
  */
+
+//rdbLoad是直接读取rdb文件内容中的key-value存入redisDb，而loadAppendOnlyFile通过伪客户端来执行，因为需要一条命令一条命令的恢复执行
 int rdbLoad(char *filename) {
     uint32_t dbid;
     int type, rdbver;

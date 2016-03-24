@@ -1,0 +1,196 @@
+- strace
+  strace -o strace.txt -ttT -s 1024 -p `pgrep nutcracker`
+
+- libyaml (yaml-0.1.4)
+
+  - yaml tokens:
+
+  0  YAML_NO_TOKEN,
+  1  YAML_STREAM_START_TOKEN,
+  2  YAML_STREAM_END_TOKEN,
+  3  YAML_VERSION_DIRECTIVE_TOKEN,
+  4  YAML_TAG_DIRECTIVE_TOKEN,
+  5  YAML_DOCUMENT_START_TOKEN,
+  6  YAML_DOCUMENT_END_TOKEN,
+  7  YAML_BLOCK_SEQUENCE_START_TOKEN,
+  8  YAML_BLOCK_MAPPING_START_TOKEN,
+  9  YAML_BLOCK_END_TOKEN,
+  10 YAML_FLOW_SEQUENCE_START_TOKEN,
+  11 YAML_FLOW_SEQUENCE_END_TOKEN,
+  12 YAML_FLOW_MAPPING_START_TOKEN,
+  13 YAML_FLOW_MAPPING_END_TOKEN,
+  14 YAML_BLOCK_ENTRY_TOKEN,
+  15 YAML_FLOW_ENTRY_TOKEN,
+  16 YAML_KEY_TOKEN,
+  17 YAML_VALUE_TOKEN,
+  18 YAML_ALIAS_TOKEN,
+  19 YAML_ANCHOR_TOKEN,
+  20 YAML_TAG_TOKEN,
+  21 YAML_SCALAR_TOKEN
+
+  - yaml events
+
+  0  YAML_NO_EVENT,
+  1  YAML_STREAM_START_EVENT,
+  2  YAML_STREAM_END_EVENT,
+  3  YAML_DOCUMENT_START_EVENT,
+  4  YAML_DOCUMENT_END_EVENT,
+  5  YAML_ALIAS_EVENT,
+  6  YAML_SCALAR_EVENT,
+  7  YAML_SEQUENCE_START_EVENT,
+  8  YAML_SEQUENCE_END_EVENT,
+  9  YAML_MAPPING_START_EVENT,
+  10 YAML_MAPPING_END_EVENT
+
+- sys/queue.h
+
+  queue.h is a generic linked list library adapted from BSD. It has three
+  macro knobs that are useful for debugging:
+
+  - QUEUE_MACRO_SCRUB nullifies links (next and prev pointers) of deleted
+    elements and catches cases where we are attempting to do operations
+    on an element that has already been unlinked.
+  - QUEUE_MACRO_TRACE keeps track of __FILE__ and __LINE__ of last two
+    updates to the list data structure.
+  - QUEUE_MACRO_ASSERT verifies the sanity of list data structure on every
+    operation.
+
+- valgrind
+  valgrind --tool=memcheck --leak-check=yes <program>
+
+- Core dump
+  ulimit -c unlimited
+
+- Generate ENOMEM to test "Out of Memory"
+  ulimit -m <size>    # limit maximum memory size
+  ulimit -v <size>    # limit virtual memory
+
+- get nutcracker stats
+  printf "" | socat  - TCP:localhost:22222 | tee stats.txt
+  printf "" | nc localhost 22222 | python -mjson.tool
+
+- Signalling and Logging
+  SIGTTIN - To up the log level
+  SIGTTOU - To down the log level
+  SIGHUP  - To reopen log file
+
+- Error codes:
+  http://www.cs.utah.edu/dept/old/texinfo/glibc-manual-0.02/library_2.html
+  /usr/include/asm-generic/errno-base.h
+  /usr/include/asm-generic/errno.h
+
+- epoll (linux)
+
+  union epoll_data {
+      void *ptr;
+      int fd;
+      uint32_t u32;
+      uint64_t u64;
+  };
+
+  struct epoll_event {
+      uint32_t          events;  /* epoll events */
+      struct epoll_data data;    /* user data variable */
+  };
+
+  /* events */
+  EPOLLIN       = 0x001,
+  EPOLLPRI      = 0x002,
+  EPOLLOUT      = 0x004,
+  EPOLLERR      = 0x008,
+  EPOLLHUP      = 0x010,
+  EPOLLRDNORM   = 0x040,
+  EPOLLRDBAND   = 0x080,
+  EPOLLWRNORM   = 0x100,
+  EPOLLWRBAND   = 0x200,
+  EPOLLMSG      = 0x400,
+  EPOLLRDHUP    = 0x2000,
+  EPOLLONESHOT  = (1 << 30),
+  EPOLLET       = (1 << 31)
+
+  /* opcodes */
+  EPOLL_CTL_ADD = 1 /* add a file decriptor to the interface */
+  EPOLL_CTL_DEL = 2 /* remove a file decriptor from the interface */
+  EPOLL_CTL_MOD = 3 /* change file decriptor epoll_event structure */
+
+- kqueue (bsd)
+
+  struct kevent {
+      uintptr_t   ident;    /* identifier for this event */
+      int16_t     filter;   /* filter for event */
+      uint16_t    flags;    /* general flags */
+      uint32_t    fflags;   /* filter-specific flags */
+      intptr_t    data;     /* filter-specific data */
+      void        *udata;   /* opaque user data identifier */
+  };
+
+  /* flags / events */
+  EV_ADD        = 0x0001    /* action - add event to kq (implies enable) */
+  EV_DELETE     = 0x0002    /* action - delete event from kq */
+  EV_ENABLE     = 0x0004    /* action - enable event */
+  EV_DISABLE    = 0x0008    /* action - disable event (not reported) */
+  EV_RECEIPT    = 0x0040    /* action - force EV_ERROR on success, data == 0 */
+
+  EV_ONESHOT    = 0x0010    /* flags - only report one occurrence */
+  EV_CLEAR      = 0x0020    /* flags - clear event state after reporting */
+  EV_DISPATCH   = 0x0080    /* flags - disable event after reporting */
+  EV_SYSFLAGS   = 0xF000    /* flags - reserved by system */
+  EV_FLAG0      = 0x1000    /* flags - filter-specific flag */
+  EV_FLAG1      = 0x2000    /* flags - filter-specific flag */
+
+  EV_EOF        = 0x8000    /* returned values - EOF detected */
+  EV_ERROR      = 0x4000    /* returned values - error, data contains errno */
+
+  /* filters */
+  EVFILT_READ       (-1)    /* readable */
+  EVFILT_WRITE      (-2)    /* writable */
+  EVFILT_AIO        (-3)    /* attached to aio requests */
+  EVFILT_VNODE      (-4)    /* attached to vnodes */
+  EVFILT_PROC       (-5)    /* attached to struct proc */
+  EVFILT_SIGNAL     (-6)    /* attached to struct proc */
+  EVFILT_TIMER      (-7)    /* timers */
+  EVFILT_MACHPORT   (-8)    /* mach portsets */
+  EVFILT_FS         (-9)    /* filesystem events */
+  EVFILT_USER       (-10)   /* user events */
+  EVFILT_VM         (-12)   /* virtual memory events */
+
+  EV_CLEAR behaves like EPOLLET because it resets the event after it is
+  returned; without this flag, the event would be repeatedly returned.
+
+- poll (unix)
+
+  POLLIN       0x001    /* there is data to read */
+  POLLPRI      0x002    /* there is urgent data to read */
+  POLLOUT      0x004    /* writing now will not block */
+
+  POLLRDNORM   0x040    /* normal data may be read */
+  POLLRDBAND   0x080    /* priority data may be read */
+  POLLWRNORM   0x100    /* writing now will not block */
+  POLLWRBAND   0x200    /* priority data may be written */
+
+  POLLMSG      0x400
+  POLLREMOVE  0x1000
+  POLLRDHUP   0x2000
+
+  POLLERR	   0x008    /* error condition */
+  POLLHUP      0x010    /* hung up */
+  POLLNVAL     0x020    /* invalid polling request */
+
+- event ports (solaris)
+
+  typedef struct port_event {
+      int         portev_events;  /* event data is source specific */
+      ushort_t    portev_source;  /* event source */
+      ushort_t    portev_pad;     /* port internal use */
+      uintptr_t   portev_object;  /* source specific object */
+      void        *portev_user;   /* user cookie */
+  } port_event_t;
+
+  /* port sources */
+  PORT_SOURCE_AIO     1
+  PORT_SOURCE_TIMER   2
+  PORT_SOURCE_USER    3
+  PORT_SOURCE_FD      4
+  PORT_SOURCE_ALERT   5
+  PORT_SOURCE_MQ      6
+  PORT_SOURCE_FILE    7

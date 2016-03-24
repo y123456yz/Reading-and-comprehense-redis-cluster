@@ -242,7 +242,7 @@ struct redisCommand *commandTable;
 
  //redisServer->orig_commands redisServer->commands(见populateCommandTable)命令表字典中的元素内容从redisCommandTable中获取， processCommand->lookupCommand查找
  //实际客户端命令的查找在函数lookupCommandOrOriginal中  参考commandTableDictType可以看出该dict对应的key比较是不区分大小写的 //客户端命令解析见processMultibulkBuffer
-struct redisCommand redisCommandTable[] = { 
+struct redisCommand redisCommandTable[] = {  //sentinelcmds  redisCommandTable  配置文件加载见loadServerConfigFromString 所有配置文件加载见loadServerConfigFromStringsentinel
     {"get",getCommand,2,"r",0,NULL,1,1,1,0,0},
     {"set",setCommand,-3,"wm",0,NULL,1,1,1,0,0},
     {"setnx",setnxCommand,3,"wm",0,NULL,1,1,1,0,0},
@@ -1007,7 +1007,8 @@ int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
 被调用，它在规定的时间内，分多次遍历服务器中的各个数据库，从数据库的expires字
 典中随机检查一部分键的过期时间，并删除其中的过期键。
 */ //随机取过期字典hash中的节点，然后进行超时判断删除，退出条件是，该函数最多执行多少时间，或者已经删除了最大限度个过期键则退出
-void activeExpireCycle(int type) { //过期键的定期删除
+//注意activeExpireCycle(定期删除)和freeMemoryIfNeeded(如果配置了最大内存，则会进行内存检查)  expireIfNeeded(被动惰性删除，由对该键操作的时候进行判断是否超时)的区别
+void activeExpireCycle(int type) { //过期键的定期删除 //注意activeExpireCycle和freeMemoryIfNeeded  expireIfNeeded的区别
     /* This function has some global state in order to continue the work
      * incrementally across calls. */
     // 静态变量，用来累积函数连续执行时的数据
@@ -1608,7 +1609,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
         int statloc;
         pid_t pid;
 
-        // 接收子进程发来的信号，非阻塞
+        // 接收子进程发来的信号，非阻塞   和rdbSaveBackground->exitFromChild对应
         if ((pid = wait3(&statloc,WNOHANG,NULL)) != 0) { //信号发送在exitFromChild
              /*
                 WEXITSTATUS(status) 当WIFEXITED返回非零值时，我们可以用这个宏来提取子进程的返回值，如果子进程调用exit(5)退出，
@@ -3747,6 +3748,7 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
     if (samples != _samples) zfree(samples);
 }
 
+//注意activeExpireCycle(定期删除)和freeMemoryIfNeeded(如果配置了最大内存，则会进行内存检查)  expireIfNeeded(被动惰性删除，由对该键操作的时候进行判断是否超时)的区别
 int freeMemoryIfNeeded(void) {
     size_t mem_used, mem_tofree, mem_freed;
     int slaves = listLength(server.slaves);
@@ -4063,6 +4065,11 @@ void memtest(size_t megabytes, int passes);
 
 /* Returns 1 if there is --sentinel among the arguments or if
  * argv[0] is exactly "redis-sentinel". */
+ /*
+ 启动一个sentinel可以用下面两种方式启动，一样的
+ redis-server /path/to/your/sentinel.conf -sentinel  
+ redis-sentinel /path/to/your/sentinel.conf
+*/
 int checkForSentinelMode(int argc, char **argv) {
     int j;
 
@@ -4082,6 +4089,8 @@ int checkForSentinelMode(int argc, char **argv) {
 void loadDataFromDisk(void) { //loadDataFromDisk和rdbSave对应加载写入
     // 记录开始时间
     long long start = ustime();
+
+//rdbLoad是直接读取rdb文件内容中的key-value存入redisDb，而loadAppendOnlyFile通过伪客户端来执行，因为需要一条命令一条命令的恢复执行
 
     // AOF 持久化已打开？
     if (server.aof_state == REDIS_AOF_ON) {

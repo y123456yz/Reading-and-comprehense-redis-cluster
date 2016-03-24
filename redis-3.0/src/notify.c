@@ -125,7 +125,7 @@ KeyspaceEvent函数，并向函数传递传递该命令所引发的事件的相关信息。
 例如:当SADD命令至少成功地向集合添加了一个集合元素之后，命令就会发送通知，该通知
 的类型为REDIS NOTIFY SET（表示这是一个集合键通知），名称为sacid（表示这是执
 行SADD命令所产生的通知）。
-*/
+*/ //键空间通知使得客户端可以通过订阅频道或模式， 来接收那些以某种方式改动了 Redis 数据集的事件。
 void notifyKeyspaceEvent(int type, char *event, robj *key, int dbid) {
     sds chan;
     robj *chanobj, *eventobj;

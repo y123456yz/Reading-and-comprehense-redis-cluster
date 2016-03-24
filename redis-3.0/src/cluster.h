@@ -132,7 +132,7 @@ struct clusterNode {
     // 创建节点的时间
     mstime_t ctime; /* Node object creation time. */
 
-    // 节点的名字，由 40 个十六进制字符组成
+    // 节点的名字，由 40 个十六进制字符组成   见createClusterNode->getRandomHexChars
     // 例如 68eef66df23420a5862208ef5b1a7005b806f2ff
     char name[REDIS_CLUSTER_NAMELEN]; /* Node name, hex string, sha1-size */
 
@@ -141,7 +141,7 @@ struct clusterNode {
     // 以及节点目前所处的状态（比如在线或者下线）。
     int flags;      /* REDIS_NODE_... */
 
-    // 节点当前的配置纪元，用于实现故障转移
+    // 节点当前的配置纪元，用于实现故障转移 /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     uint64_t configEpoch; /* Last configEpoch observed for this node */
 
     // 由这个节点负责处理的槽
@@ -207,6 +207,7 @@ typedef struct clusterState {
     // 指向当前节点的指针
     clusterNode *myself;  /* This node */
 
+    /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     // 集群当前的配置纪元，用于实现故障转移
     uint64_t currentEpoch;
 
@@ -387,7 +388,7 @@ typedef struct {
 
 typedef struct {
 
-    // 节点的配置纪元
+    // 节点的配置纪元  /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     uint64_t configEpoch; /* Config epoch of the specified instance. */
 
     // 节点的名字
@@ -398,9 +399,11 @@ typedef struct {
 
 } clusterMsgDataUpdate;
 
-union clusterMsgData {
+union clusterMsgData {//clusterMsg中的data字段
 
-    /* PING, MEET and PONG */
+     /* PING, MEET and PONG */ /*
+    因为MEET、PING、PONG三种消息都使用相同的消息正文，所以节点通过消息头的type属性来判断一条消息是MEET消息、PING消息还是PONG消息。
+     */
     struct {
         /* Array of N clusterMsgDataGossip structures */
         // 每条消息都包含两个 clusterMsgDataGossip 结构
@@ -432,6 +435,9 @@ typedef struct {
     uint16_t ver;       /* Protocol version, currently set to 0. */
     uint16_t notused0;  /* 2 bytes not used. */
 
+    /*
+    因为MEET、PING、PONG三种消息都使用相同的消息正文，所以节点通过消息头的type属性来判断一条消息是MEET消息、PING消息还是PONG消息。
+     */
     // 消息的类型
     uint16_t type;      /* Message type */
 
@@ -439,11 +445,11 @@ typedef struct {
     // 只在发送 MEET 、 PING 和 PONG 这三种 Gossip 协议消息时使用
     uint16_t count;     /* Only used for some kind of messages. */
 
-    // 消息发送者的配置纪元
+    // 消息发送者的配置纪元  /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     uint64_t currentEpoch;  /* The epoch accordingly to the sending node. */
 
     // 如果消息发送者是一个主节点，那么这里记录的是消息发送者的配置纪元
-    // 如果消息发送者是一个从节点，那么这里记录的是消息发送者正在复制的主节点的配置纪元
+    // 如果消息发送者是一个从节点，那么这里记录的是消息发送者正在复制的主节点的配置纪元 /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     uint64_t configEpoch;   /* The config epoch if it's a master, or the last
                                epoch advertised by its master if it is a
                                slave. */
@@ -452,6 +458,8 @@ typedef struct {
     uint64_t offset;    /* Master replication offset if node is a master or
                            processed replication offset if node is a slave. */
 
+    /* currentEpoch、sender、myslots等属性记录了发送者自身的节点信息，接牧者会根据这些信息，在自己的clusterState．nodes字典里找到发送
+者对应的clusterNode结构，并对结构进行更新。 */
     // 消息发送者的名字（ID）
     char sender[REDIS_CLUSTER_NAMELEN]; /* Name of the sender node */
 

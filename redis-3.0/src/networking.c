@@ -403,7 +403,7 @@ void _addReplyStringToList(redisClient *c, char *s, size_t len) {
  * Higher level functions to queue data on the client output buffer.
  * The following functions are the ones that commands implementations will call.
  * -------------------------------------------------------------------------- */
-
+//sendReplyToClient为实际的数据write的地方，并且会现在一次性最多发送多少，避免阻塞
 void addReply(redisClient *c, robj *obj) {
 
     // 为客户端安装写处理器到事件循环
@@ -1087,7 +1087,8 @@ void freeClientsInAsyncFreeQueue(void) {
 
 /*
  * 负责传送命令回复的写处理器
- */ //readQueryFromClient与sendReplyToClient对应，一个接收，一个发送
+ */ //readQueryFromClient与sendReplyToClient对应，一个接收，一个发送  //创建TCP连接在acceptTcpHandler
+ //这里面会限制最多一次性发送64M，避免数据过大阻塞
 void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     redisClient *c = privdata;
     int nwritten = 0, totwritten = 0, objlen;
@@ -1178,7 +1179,7 @@ void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask) {
          * 这时即使写入量超过了 REDIS_MAX_WRITE_PER_EVENT ，
          * 程序也继续进行写入
          */
-        if (totwritten > REDIS_MAX_WRITE_PER_EVENT &&
+        if (totwritten > REDIS_MAX_WRITE_PER_EVENT &&  //最多写64M
             (server.maxmemory == 0 ||
              zmalloc_used_memory() < server.maxmemory)) break;
     }
@@ -1615,7 +1616,7 @@ $3表示后面的get是3个字节。
 
 /*
  * 读取客户端的查询缓冲区内容
- */ //readQueryFromClient与sendReplyToClient对应，一个接收，一个发送
+ */ //readQueryFromClient与sendReplyToClient对应，一个接收，一个发送  //创建TCP连接在acceptTcpHandler，关闭连接并释放资源见freeClient    读取数据在readQueryFromClient
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     redisClient *c = (redisClient*) privdata;
     int nread, readlen;

@@ -2086,6 +2086,15 @@ redisÌá¹©ÁËÁ½ÖÖ³Ö¾Ã»¯µÄ·½Ê½£¬·Ö±ðÊÇRDB£¨Redis DataBase£©ºÍAOF£¨Append Only File£
     µ½ÄÚºËÍøÂçÐ­ÒéÕ»£¬ÕâÑùÓÐµãÀË·ÑCPU×ÊÔ´ºÍÄÚ´æ¡£
 
     ¸ÄÔì·½·¨:Í¨¹ýsendfile»òÕßaio·½Ê½·¢ËÍ£¬±ÜÃâ¶à´ÎÄÚºËÓëÓ¦ÓÃ²ã½»»¥£¬Ìá¸ßÐÔÄÜ¡£
+¸ÄÔìµã4:Ö÷±¸Í¬²½¹ýÓÚÂé·³£¬Ã¿´Î¶¼ÒªÂäµØ´ÅÅÌ£¬È»ºóÔÚ´Ó´ÅÅÌ¶ÁÈ¡
+    ¸ÄÔì·½·¨:Ö±½Ó°ÑÄÚ´æÖÐµÄKEY-VALUE¶Ô°´ÕÕÖ¸¶¨¸ñÊ½·¢¸ø±¸£¬²»ÓÃÐ´´ÅÅÌÂäµØºÍ´Ó´ÅÅÌ¶Á
+
+¸ÄÔìµã5:Èç¹ûÍøÂç²»ºÃ£¬±»·´¸´Á¬½ÓÖ÷£¬ÀýÈç´ÅÅÌÂäµØ³É¹¦£¬²¢´Ó´ÅÅÌ¶ÁÈ¡³É¹¦ºóÕý×øÔÚ½øÐÐÍøÂçÍ¬²½£¬È»ºóÍøÂç¶ÏÁË?»áÔì³ÉÖ÷±¸Í¬²½·´·´¸´¸´£¬ÏûºÄÐÔÄÜ
+
+¸ÄÔìµã6:½¨Òé×Ô¼ºÐ´¸öredisÖÐ¼ä¼þ£¬±ÜÃâËùÓÐ²Ù×÷ÓÐ¿Í»§¶ËÀ´Íê³É
+
+ÐèÒªÔö¼Ó»ñÈ¡Êý¾Ý¿âºÅµÄÃüÁî£¬ÒòÎª¶à´Î²Ù×÷Êý¾Ý¿âºó£¬¾ÍÍüÁËÏÖÔÚ²Ù×÷µÄÊÇÄÇ¸öÊý¾Ý¿âºÅµÄÊý¾Ý¿âÁË¡£
+
 
 ·¢ÏÖ¿ÉÒÉÎÊÌâ:
 1.Ö÷´Ó·þÎñÆ÷Ö®¼äÍ¨¹ýack½øÐÐÁ´Â·Ì½²â£¬ËûÃÇÖ®¼äµÄtcpÁ¬½ÓÄ¬ÈÏtcp-keepalive=0£¬Ò²¾ÍÊÇ²»¿ªÆôÄÚºË×Ô¶¯keepalive±£»î£¬Èç¹ûÔÚÁ´Â·²»Í¨µÄÇé¿öÏÂ

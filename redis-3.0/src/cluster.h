@@ -60,7 +60,7 @@ struct clusterNode;
 
 /* clusterLink encapsulates everything needed to talk with a remote node. */
 // clusterLink 包含了与其他节点进行通讯所需的全部信息
-typedef struct clusterLink {
+typedef struct clusterLink { //clusterNode->link
 
     // 连接的创建时间
     mstime_t ctime;             /* Link creation time */
@@ -80,7 +80,8 @@ typedef struct clusterLink {
 } clusterLink;
 
 /* Cluster node flags and macros. */
-// 该节点为主节点
+// 该节点为主节点  在集群情况下，在redis起来的时候如果发现配置是cluster模式则会设置本节点模式为nodes.conf中的配置，或者主备情况下主挂了后，被被
+//其他的备节点被集群中的半数以上主节点选为主节点，则该节点变为主
 #define REDIS_NODE_MASTER 1     /* The node is a master */
 // 该节点为从节点
 #define REDIS_NODE_SLAVE 2      /* The node is a slave */
@@ -139,8 +140,9 @@ struct clusterNode {
     // 节点标识
     // 使用各种不同的标识值记录节点的角色（比如主节点或者从节点），
     // 以及节点目前所处的状态（比如在线或者下线）。
-    int flags;      /* REDIS_NODE_... */
+    int flags;      /* REDIS_NODE_... */ //取值可以参考clusterGenNodeDescription
 
+    /* configepoch和currentepoch可以参考:Redis_Cluster的Failover设计.PPT */
     // 节点当前的配置纪元，用于实现故障转移 /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     uint64_t configEpoch; /* Last configEpoch observed for this node */
 
@@ -202,7 +204,7 @@ typedef struct clusterNode clusterNode;
 // 另外，虽然这个结构主要用于记录集群的属性，但是为了节约资源，
 // 有些与节点有关的属性，比如 slots_to_keys 、 failover_auth_count 
 // 也被放到了这个结构里面。
-typedef struct clusterState {
+typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在clusterLoadConfig
 
     // 指向当前节点的指针
     clusterNode *myself;  /* This node */
@@ -243,7 +245,11 @@ typedef struct clusterState {
     // 跳跃表，表中以槽作为分值，键作为成员，对槽进行有序排序
     // 当需要对某些槽进行区间（range）操作时，这个跳跃表可以提供方便
     // 具体操作定义在 db.c 里面
-    zskiplist *slots_to_keys;
+
+     //注意在从rdb文件或者aof文件中读取到key-value对的时候，如果启用了集群功能会在dbAdd->slotToKeyAdd(key);中把key和slot的对应关系添加到slots_to_keys
+    //并在verifyClusterConfigWithData->clusterAddSlot中从而指派对应的slot，也就是本服务器中的rdb中的key-value对应的slot分配给本服务器
+    zskiplist *slots_to_keys; 
+   
 
     /* The following fields are used to take the slave state on elections. */
     // 以下这些域被用于进行故障转移选举

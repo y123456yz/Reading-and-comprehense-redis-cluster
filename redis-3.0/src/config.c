@@ -168,7 +168,7 @@ void loadServerConfigFromString(char *config) {
             } else if (argc == 2 && !strcasecmp(argv[1],"")) {
                 resetServerSaveParams();
             }
-        } else if (!strcasecmp(argv[0],"dir") && argc == 2) {
+        } else if (!strcasecmp(argv[0],"dir") && argc == 2) { //相当于cd命令功能，用于在该目录进行rdb aof文件落地
             if (chdir(argv[1]) == -1) {
                 redisLog(REDIS_WARNING,"Can't chdir to '%s': %s",
                     argv[1], strerror(errno));
@@ -287,6 +287,7 @@ void loadServerConfigFromString(char *config) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
         } else if (!strcasecmp(argv[0],"repl-backlog-size") && argc == 2) {
+        //repl_backlog积压缓存区空间  repl_backlog_size积压缓冲区总大小  参考resizeReplicationBacklog
             long long size = memtoll(argv[1],NULL);
             if (size <= 0) {
                 err = "repl-backlog-size must be 1 or greater.";
@@ -360,6 +361,10 @@ void loadServerConfigFromString(char *config) {
                 err = "argument must be 'no', 'always' or 'everysec'";
                 goto loaderr;
             }
+        /*
+        #部署在同一机器的redis实例，把auto-aof-rewrite搓开，防止瞬间fork所有redis进程做rewrite,占用大量内存
+        auto-aof-rewrite-percentage 80-100
+        */
         } else if (!strcasecmp(argv[0],"auto-aof-rewrite-percentage") &&
                    argc == 2)
         {
@@ -368,6 +373,13 @@ void loadServerConfigFromString(char *config) {
                 err = "Invalid negative percentage for AOF auto rewrite";
                 goto loaderr;
             }
+
+        /*
+        如果当前大小比指定的百分比，重写机制就会被触发。同时，你也要制定一个重写下线，用来避免增长
+        百分比够了，但是日志文件还很小的情况。   指定百分比为0可以注掉自动重写日志文件功能。  
+        auto-aof-rewrite-percentage 100  
+        auto-aof-rewrite-min-size 64mb  
+        */
         } else if (!strcasecmp(argv[0],"auto-aof-rewrite-min-size") &&
                    argc == 2)
         {
@@ -737,6 +749,11 @@ void configSetCommand(redisClient *c) {
                 return;
             }
         }
+
+    /*
+    #部署在同一机器的redis实例，把auto-aof-rewrite搓开，防止瞬间fork所有redis进程做rewrite,占用大量内存
+    auto-aof-rewrite-percentage 80-100
+    */
     } else if (!strcasecmp(c->argv[2]->ptr,"auto-aof-rewrite-percentage")) {
         if (getLongLongFromObject(o,&ll) == REDIS_ERR || ll < 0) goto badfmt;
         server.aof_rewrite_perc = ll;
@@ -900,6 +917,7 @@ void configSetCommand(redisClient *c) {
         if (getLongLongFromObject(o,&ll) == REDIS_ERR || ll <= 0) goto badfmt;
         server.repl_timeout = ll;
     } else if (!strcasecmp(c->argv[2]->ptr,"repl-backlog-size")) {
+    //repl_backlog积压缓存区空间  repl_backlog_size积压缓冲区总大小  参考resizeReplicationBacklog
         if (getLongLongFromObject(o,&ll) == REDIS_ERR || ll <= 0) goto badfmt;
         resizeReplicationBacklog(ll);
     } else if (!strcasecmp(c->argv[2]->ptr,"repl-backlog-ttl")) {
@@ -991,7 +1009,7 @@ badfmt: /* Bad format errors */
     } \
 } while(0);
 
-void configGetCommand(redisClient *c) {
+void configGetCommand(redisClient *c) { //config get命令获取所有的配置信息
     robj *o = c->argv[2];
     void *replylen = addDeferredMultiBulkLength(c);
     char *pattern = o->ptr;
@@ -1745,7 +1763,7 @@ cleanup:
  * explicitly included in the old configuration file, are not rewritten.
  *
  * On error -1 is returned and errno is set accordingly, otherwise 0. */
-int rewriteConfig(char *path) {
+int rewriteConfig(char *path) { //config rewrite重新把所有配置写入文件
     struct rewriteConfigState *state;
     sds newcontent;
     int retval;
@@ -1861,7 +1879,7 @@ void configCommand(redisClient *c) {
     if (!strcasecmp(c->argv[1]->ptr,"set")) {
         if (c->argc != 4) goto badarity;
         configSetCommand(c);
-    } else if (!strcasecmp(c->argv[1]->ptr,"get")) {
+    } else if (!strcasecmp(c->argv[1]->ptr,"get")) { //config get命令获取所有的配置信息
         if (c->argc != 3) goto badarity;
         configGetCommand(c);
     } else if (!strcasecmp(c->argv[1]->ptr,"resetstat")) {
@@ -1869,7 +1887,7 @@ void configCommand(redisClient *c) {
         resetServerStats();
         resetCommandTableStats();
         addReply(c,shared.ok);
-    } else if (!strcasecmp(c->argv[1]->ptr,"rewrite")) {
+    } else if (!strcasecmp(c->argv[1]->ptr,"rewrite")) { //config rewrite重新把所有配置写入文件
         if (c->argc != 2) goto badarity;
         if (server.configfile == NULL) {
             addReplyError(c,"The server is running without a config file");

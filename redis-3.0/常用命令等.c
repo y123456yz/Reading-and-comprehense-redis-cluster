@@ -2101,5 +2101,55 @@ redisÌá¹©ÁËÁ½ÖÖ³Ö¾Ã»¯µÄ·½Ê½£¬·Ö±ğÊÇRDB£¨Redis DataBase£©ºÍAOF£¨Append Only File£
   (ÀıÈçÖ±½Ó°ÑÖ÷·şÎñÆ÷ÍøÏß°Îµô»òÕßÖ±½Ó¹Ø»ú)£¬´Ó·şÎñÆ÷³¤Ê±¼äÎŞ·¨×Ô¶¯ÇĞ»»µ½Ö÷·şÎñÆ÷À´Ìá¸ß·şÎñ
 
 ĞŞ¸Ä·½·¨:Ôö¼ÓÓ¦ÓÃ²ã±£»î³¬Ê±¼ì²â£¬¿ÉÒÔÔö¼ÓÁ´Â·±£»îÌ½²â¶¨Ê±Æ÷£¬·şÎñÆ÷³¤Ê±¼äÃ»ÓĞ½ÓÊÕµ½±Ë´ËµÄ±£»î±¨ÎÄ£¬ÔòÖ±½ÓÖ÷¶¯¶Ï¿ªTCPÁ¬½Ó£¬´Ó¶øÈÃ±¸ÇĞ»»ÎªÖ÷·şÎñÆ÷Ìá¸ß·şÎñ¡£
+
+
+
+nodes.confÈç¹ûÀïÃæ¾ÍÒ»ĞĞ¿ÕĞĞ£¬Ê²Ã´Ò²Ã»ÓĞ£¬ÔòredisÆğ²»À´£¬ÕâÊÇclusterLoadConfigµÄÎÊÌâ£¬ËùÒÔÒ»°ã²»ÒªÈ¥²Ù×÷nodes.confÎÄ¼ş£¬Èç¹ûÏëÈÃ¼¯Èº×´Ì¬¹ØÏµÖØĞÂĞ­ÉÌ
+Ôò¿ÉÒÔÖ±½ÓÉ¾µônodes.confÀ´½â¾ö¡£nodes.confÓĞredis³ÌĞò²Ù×÷£¬²»ÒªÊÖ¶¯²Ù×÷¸ÃÎÄ¼ş¡£
+
+redis-trib.rb  create --replicas 1 127.0.0.1:7000 127.0.0.1:7001 127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005
+redis-benchmark -h 10.23.22.240 -p 22121 -c 100 -t set -d 100 -l ¨Cq
+
+redis-benchmark  -h 192.168.1.111 -p 22122 -c 100 -t set -d 100 
+
+ĞÔÄÜ²âÊÔ
+ÕâÀïÊ¹ÓÃredis×Ô´øµÄredis-benchmark½øĞĞ¼òµ¥µÄĞÔÄÜ²âÊÔ£¬²âÊÔ½á¹ûÈçÏÂ:
+
+Set²âÊÔ£º
+Í¨¹ıtwemproxy²âÊÔ£º
+[root@COS1 src]# redis-benchmark -h 10.23.22.240 -p 22121 -c 100 -t set -d 100 -l ¨Cq
+SET: 38167.94 requests per second
+Ö±½Ó¶Ôºó¶Ëredis²âÊÔ£º
+[root@COS2 ~]# redis-benchmark -h 10.23.22.241 -p 6379 -c 100 -t set -d 100 -l ¨Cq
+SET: 53191.49 requests per second
+Get²âÊÔ£º
+Í¨¹ıtwemproxy²âÊÔ£º
+[root@COS1 src]# redis-benchmark -h 10.23.22.240 -p 22121 -c 100 -t get -d 100 -l -q
+GET: 37453.18 requests per second
+Ö±½Ó¶Ôºó¶Ëredis²âÊÔ£º
+[root@COS2 ~]# redis-benchmark -h 10.23.22.241 -p 6379 -c 100 -t get -d 100 -l -q
+GET: 62111.80 requests per second
+²é¿´¼üÖµ·Ö²¼£º
+[root@COS2 ~]# redis-cli info|grep db0
+db0:keys=51483,expires=0,avg_ttl=0
+
+[root@COS3 ~]# redis-cli info|grep db0
+db0:keys=48525,expires=0,avg_ttl=0
+
+
+ÈÕÖ¾ÓÅ»¯£¬ÏÖÔÚÊÇÃ¿Ğ´Ò»ÌõÈÕÖ¾¶¼open´ò¿ªÎÄ¼ş£¬Ğ´Èëºó¹Ø±Õ¡£ÈÕÖ¾¶àµÄÊ±ºòĞ§ÂÊµ×ÏÂ£¬¿ÉÒÔÒ»Ö±´ò¿ªÈÕÖ¾ÎÄ¼ş£¬²»¹Ø±Õ
+
+/*
+[root@V172-16-3-44 autostartrediscluster]# redis-trib.rb  create --replicas 1 127.0.0.1:7000 127.0.0.1:7001 127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005
+/usr/lib/ruby/site_ruby/1.8/rubygems/custom_require.rb:31:in `gem_original_require': no such file to load -- redis (LoadError)
+        from /usr/lib/ruby/site_ruby/1.8/rubygems/custom_require.rb:31:in `require'
+        from /usr/local/bin/redis-trib.rb:25
+±¨´í£¬Ö´ĞĞyum install ruby  yum install redis¼´¿É
+
+
+https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt   linuxÄÚºË²ÎÊıµ÷ÓÅ
+configÅäÖÃÎÄ¼ş²Î¿¼:http://my.oschina.net/u/568779/blog/308129
+
+*/
 */
 

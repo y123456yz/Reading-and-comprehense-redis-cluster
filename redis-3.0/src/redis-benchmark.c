@@ -49,18 +49,19 @@
 #define REDIS_NOTUSED(V) ((void) V)
 #define RANDPTR_INITIAL_SIZE 8
 
-static struct config {
+static struct config {/* config配置信息结构体，static静态变量，使得全局只有一个 */
+    //消息事件
     aeEventLoop *el;
     const char *hostip;
     int hostport;
-    const char *hostsocket;
-    int numclients;
+    const char *hostsocket;//据此判断是否是本地测试
+    int numclients; //Client总数量 -c参数指定
     int liveclients;
-    int requests;
+    int requests; //请求的总数
     int requests_issued;
-    int requests_finished;
+    int requests_finished;  //请求完成的总数
     int keysize;
-    int datasize;
+    int datasize; //-d参数指定数据大小
     int randomkeys;
     int randomkeys_keyspacelen;
     int keepalive;
@@ -72,22 +73,31 @@ static struct config {
     list *clients;
     int quiet;
     int csv;
-    int loop;
+    int loop;//判断是否loop循环处理
     int idlemode;
     int dbnum;
     sds dbnumstr;
-    char *tests;
-} config;
+    int loop_count_start;
+    char *tests; //-t 参数指定的字符串表示只对该命令做测试，参考test_is_selected
+} config;  //存放全局配置信息
 
 typedef struct _client {
-    redisContext *context;
-    sds obuf;
+    redisContext *context;//redis上下文
+    sds obuf;//此缓冲区将用于后面的读写handler
+
+    //rand指针数组
     char **randptr;         /* Pointers to :rand: strings inside the command buf */
+    //randptr中指针个数
     size_t randlen;         /* Number of pointers in client->randptr */
+    //randptr中没有被使用的指针个数
     size_t randfree;        /* Number of unused pointers in client->randptr */
+     
     unsigned int written;   /* Bytes of 'obuf' already written */
+    //请求的发起时间
     long long start;        /* Start time of a request */
+    //请求的延时
     long long latency;      /* Request latency */
+    //请求的等待个数
     int pending;            /* Number of pending requests (replies to consume) */
     int selectlen;  /* If non-zero, a SELECT of 'selectlen' bytes is currently
                        used as a prefix of the pipline of commands. This gets
@@ -193,9 +203,9 @@ static void readHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     /* Calculate latency only for the first read event. This means that the
      * server already sent the reply and we need to parse it. Parsing overhead
      * is not part of the latency, so calculate it only once, here. */
-    if (c->latency < 0) c->latency = ustime()-(c->start);
+    if (c->latency < 0) c->latency = ustime()-(c->start);//计算延时，然后比较延时，取得第一个read 的event事件
 
-    if (redisBufferRead(c->context) != REDIS_OK) {
+    if (redisBufferRead(c->context) != REDIS_OK) {//首先判断能否读
         fprintf(stderr,"Error: %s\n",c->context->errstr);
         exit(1);
     } else {
@@ -205,7 +215,7 @@ static void readHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                 exit(1);
             }
             if (reply != NULL) {
-                if (reply == (void*)REDIS_REPLY_ERROR) {
+                if (reply == (void*)REDIS_REPLY_ERROR) {//获取reply回复，如果这里出错，也会直接退出
                     fprintf(stderr,"Unexpected error reply, exiting...\n");
                     exit(1);
                 }
@@ -217,7 +227,7 @@ static void readHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
                     /* This is the OK from SELECT. Just discard the SELECT
                      * from the buffer. */
-                    c->pending--;
+                    c->pending--;//执行到这里，请求已经执行成功，等待的请求数减1
                     sdsrange(c->obuf,c->selectlen,-1);
                     /* We also need to fix the pointers to the strings
                      * we need to randomize. */
@@ -231,7 +241,7 @@ static void readHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                     config.latency[config.requests_finished++] = c->latency;
                 c->pending--;
                 if (c->pending == 0) {
-                    clientDone(c);
+                    clientDone(c);//调用客户端done完成后的方法
                     break;
                 }
             } else {
@@ -304,6 +314,7 @@ static client createClient(char *cmd, size_t len, client from) {
     int j;
     client c = zmalloc(sizeof(struct _client));
 
+    //printf("yang test ............. cmd:%s\n", cmd);
     if (config.hostsocket == NULL) {
         c->context = redisConnectNonBlock(config.hostip,config.hostport);
     } else {
@@ -414,7 +425,7 @@ static int compareLatency(const void *a, const void *b) {
     return (*(long long*)a)-(*(long long*)b);
 }
 
-static void showLatencyReport(void) {
+static void showLatencyReport(void) {/* 输出请求延时 */
     int i, curlat = 0;
     float perc, reqpersec;
 
@@ -429,7 +440,7 @@ static void showLatencyReport(void) {
         printf("\n");
 
         qsort(config.latency,config.requests,sizeof(long long),compareLatency);
-        for (i = 0; i < config.requests; i++) {
+        for (i = 0; i < config.requests; i++) {//将请求按延时排序
             if (config.latency[i]/1000 != curlat || i == (config.requests-1)) {
                 curlat = config.latency[i]/1000;
                 perc = ((float)(i+1)*100)/config.requests;
@@ -444,6 +455,7 @@ static void showLatencyReport(void) {
     }
 }
 
+/* 对指定的CMD命令做性能测试 */
 static void benchmark(char *title, char *cmd, int len) {
     client c;
 
@@ -456,14 +468,37 @@ static void benchmark(char *title, char *cmd, int len) {
 
     config.start = mstime();
     aeMain(config.el);
-    config.totlatency = mstime()-config.start;
+    config.totlatency = mstime()-config.start;//最后通过计算总延时，显示延时报告，体现性能测试的结果
 
     showLatencyReport();
     freeAllClients();
 }
 
+/*
+-h <hostname>      Server hostname (default 127.0.0.1)
+-p <port>          Server port (default 6379)
+-s <socket>        Server socket (overrides host and port)
+-c <clients>       Number of parallel connections (default 50)
+-n <requests>      Total number of requests (default 10000)
+-d <size>          Data size of SET/GET value in bytes (default 2)
+-dbnum <db>        SELECT the specified db number (default 0)
+-k <boolean>       1=keep alive 0=reconnect (default 1)
+-r <keyspacelen>   Use random keys for SET/GET/INCR, random values for SADD
+ Using this option the benchmark will expand the string __rand_int__
+ inside an argument with a 12 digits number in the specified range
+ from 0 to keyspacelen-1. The substitution changes every time a command
+ is executed. Default tests use this to hit random keys in the
+ specified range.
+-P <numreq>        Pipeline <numreq> requests. Default 1 (no pipeline).
+-q                 Quiet. Just show query/sec values
+--csv              Output in CSV format
+-l                 Loop. Run the tests forever
+-t <tests>         Only run the comma separated list of tests. The test
+                   names are the same as the ones produced as output.
+-I                 Idle mode. Just open N idle connections and wait.
+*/
 /* Returns number of consumed options. */
-int parseOptions(int argc, const char **argv) {
+int parseOptions(int argc, const char **argv) {/* 根据读入的参数，设置config配置文件 */
     int i;
     int lastarg;
     int exit_status = 1;
@@ -471,6 +506,10 @@ int parseOptions(int argc, const char **argv) {
     for (i = 1; i < argc; i++) {
         lastarg = (i == (argc-1));
 
+        if (!strcmp(argv[i],"-C")) {
+            if (lastarg) goto invalid;
+            config.loop_count_start = atoi(argv[++i]);
+        } else
         if (!strcmp(argv[i],"-c")) {
             if (lastarg) goto invalid;
             config.numclients = atoi(argv[++i]);
@@ -587,7 +626,8 @@ usage:
     exit(exit_status);
 }
 
-//250MS运行一次
+//250MS运行一次 
+/* 显示Request执行的速度，简称RPS */
 int showThroughput(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     REDIS_NOTUSED(eventLoop);
     REDIS_NOTUSED(id);
@@ -603,7 +643,8 @@ int showThroughput(struct aeEventLoop *eventLoop, long long id, void *clientData
 
 /* Return true if the named test was selected using the -t command line
  * switch, or if all the tests are selected (no -t passed by user). */
-int test_is_selected(char *name) {
+ //-t 参数指定的字符串表示只对该命令做测试，参考test_is_selected
+int test_is_selected(char *name) { //name拷贝到config.tests中  /* 检测config中的命令是否被选中 */
     char buf[256];
     int l = strlen(name);
 
@@ -615,7 +656,8 @@ int test_is_selected(char *name) {
     return strstr(config.tests,buf) != NULL;
 }
 
-int main(int argc, const char **argv) {
+int main(int argc, const char **argv) 
+{
     int i;
     char *data, *cmd;
     int len;
@@ -627,7 +669,7 @@ int main(int argc, const char **argv) {
     signal(SIGPIPE, SIG_IGN);
 
     config.numclients = 50;
-    config.requests = 10000;
+    config.requests = 100000;
     config.liveclients = 0;
     config.el = aeCreateEventLoop(1024*10);
     aeCreateTimeEvent(config.el,1,showThroughput,NULL,NULL);
@@ -647,6 +689,7 @@ int main(int argc, const char **argv) {
     config.hostsocket = NULL;
     config.tests = NULL;
     config.dbnum = 0;
+    static long long count = 0;
 
     i = parseOptions(argc,argv);
     argc -= i;
@@ -682,29 +725,29 @@ int main(int argc, const char **argv) {
 
         return 0;
     }
-
+    count = config.loop_count_start;
     /* Run default benchmark suite. */
-    do {
-        data = zmalloc(config.datasize+1);
+    data = zmalloc(config.datasize+1);
+    do {//持续写数据用./src/redis-benchmark -h 172.16.3.44 -p 11112 -c 2 -n 2 -d 10 -q -l -k 1
         memset(data,'x',config.datasize);
         data[config.datasize] = '\0';
 
-        if (test_is_selected("ping_inline") || test_is_selected("ping"))
+        /*if (test_is_selected("ping_inline") || test_is_selected("ping"))
             benchmark("PING_INLINE","PING\r\n",6);
 
         if (test_is_selected("ping_mbulk") || test_is_selected("ping")) {
             len = redisFormatCommand(&cmd,"PING");
             benchmark("PING_BULK",cmd,len);
             free(cmd);
-        }
+        }*/
 
         if (test_is_selected("set")) {
-            len = redisFormatCommand(&cmd,"SET key:__rand_int__ %s",data);
+            len = redisFormatCommand(&cmd,"SET key:__rand_int__%lld %s",count, data);
             benchmark("SET",cmd,len);
             free(cmd);
         }
 
-        if (test_is_selected("get")) {
+       /* if (test_is_selected("get")) {
             len = redisFormatCommand(&cmd,"GET key:__rand_int__");
             benchmark("GET",cmd,len);
             free(cmd);
@@ -714,28 +757,27 @@ int main(int argc, const char **argv) {
             len = redisFormatCommand(&cmd,"INCR counter:__rand_int__");
             benchmark("INCR",cmd,len);
             free(cmd);
-        }
+        }*/
 
         if (test_is_selected("lpush")) {
-            len = redisFormatCommand(&cmd,"LPUSH mylist %s",data);
+            len = redisFormatCommand(&cmd,"LPUSH mylist %lld_%s",count, data);
             benchmark("LPUSH",cmd,len);
             free(cmd);
         }
 
-        if (test_is_selected("lpop")) {
+       /* if (test_is_selected("lpop")) {
             len = redisFormatCommand(&cmd,"LPOP mylist");
             benchmark("LPOP",cmd,len);
             free(cmd);
-        }
+        }*/
 
         if (test_is_selected("sadd")) {
-            len = redisFormatCommand(&cmd,
-                "SADD myset element:__rand_int__");
+            len = redisFormatCommand(&cmd, "SADD myset element:__rand_int__%lld", count);
             benchmark("SADD",cmd,len);
             free(cmd);
         }
 
-        if (test_is_selected("spop")) {
+       /*if (test_is_selected("spop")) {
             len = redisFormatCommand(&cmd,"SPOP myset");
             benchmark("SPOP",cmd,len);
             free(cmd);
@@ -786,10 +828,11 @@ int main(int argc, const char **argv) {
             len = redisFormatCommandArgv(&cmd,21,argv,NULL);
             benchmark("MSET (10 keys)",cmd,len);
             free(cmd);
-        }
-
+        }*/
+        count++;
         if (!config.csv) printf("\n");
     } while(config.loop);
 
     return 0;
 }
+

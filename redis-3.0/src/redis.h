@@ -1076,7 +1076,9 @@ typedef struct redisClient {   //redisServer与redisClient对应
     sds replpreamble;       /* replication DB preamble. */
 
     // 主服务器的复制偏移量  先前连接断开前接受到的主服务器数据量，下次再次连接到主服务器后，则把这个偏移量传过去，主服务器就知道应该从上面地方接着传
-    //见slaveTryPartialResynchronization
+    //见slaveTryPartialResynchronization   //备服务器只有在接收到完整的主服务器的RDB文件后，才会更新该值，并且在实时数据过来的时候也需要更新该值。
+    //如果该redis备启动后，正在同步rdb文件，同步一般RDB文件，这时候网络异常，则再次连接上后还是需要进行完整RDB同步，
+    //因为只有同步了完整的RDB文件后才会更新偏移量reploff，见slaveTryPartialResynchronization 
     long long reploff;      /* replication offset if this is our master */
     // 从服务器最后一次发送 REPLCONF ACK 时的偏移量
     long long repl_ack_off; /* replication ack offset, if this is a slave */
@@ -1380,7 +1382,7 @@ struct redisServer {//struct redisServer server;
     // 是否设置了密码 requirepass 配置认证密码
     char *requirepass;          /* Pass for AUTH command, or NULL */
 
-    // PID 文件
+    // PID 文件  进程号写入该文件中，见createPidFile
     char *pidfile;              /* PID file path */
 
     // 架构类型
@@ -1939,7 +1941,10 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
 
     int cluster_enabled;      /* Is cluster enabled? */
     mstime_t cluster_node_timeout; /* Cluster node timeout. */
-    char *cluster_configfile; /* Cluster auto-generated config file name. */
+    char *cluster_configfile; /* Cluster auto-generated config file name. */ //从nodes.conf中载入，见clusterLoadConfig
+    //server.cluster = zmalloc(sizeof(clusterState));
+    //集群相关配置加载在clusterLoadConfig,  server.cluster可能从nodes.conf配置文件中加载也可能如果没有nodes.conf配置文件或者配置文件空或者配置有误，则加载失败后
+    //创建对应的cluster节点
     struct clusterState *cluster;  /* State of the cluster */
 
     int cluster_migration_barrier; /* Cluster replicas migration barrier. */

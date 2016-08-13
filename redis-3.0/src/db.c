@@ -2175,6 +2175,11 @@ int *sortGetKeys(struct redisCommand *cmd, robj **argv, int argc, int *numkeys) 
 /* Slot to Key API. This is used by Redis Cluster in order to obtain in
  * a fast way a key that belongs to a specified hash slot. This is useful
  * while rehashing the cluster. */
+
+//注意在从rdb文件或者aof文件中读取到key-value对的时候，如果启用了集群功能会在dbAdd->slotToKeyAdd(key);中把key和slot的对应关系添加到slots_to_keys
+//并在verifyClusterConfigWithData->clusterAddSlot中从而指派对应的slot，也就是本服务器中的rdb中的key-value对应的slot分配给本服务器
+
+
 // 将给定键添加到槽里面，
 // 节点的 slots_to_keys 用跳跃表记录了 slot -> key 之间的映射
 // 这样可以快速地处理槽和键的关系，在 rehash 槽时很有用。
@@ -2246,6 +2251,9 @@ unsigned int delKeysInSlot(unsigned int hashslot) {
     return j;
 }
 
+//注意在从rdb文件或者aof文件中读取到key-value对的时候，如果启用了集群功能会在dbAdd->slotToKeyAdd(key);中把key和slot的对应关系添加到slots_to_keys
+//并在verifyClusterConfigWithData->clusterAddSlot中从而指派对应的slot，也就是本服务器中的rdb中的key-value对应的slot分配给本服务器
+
 // 返回指定 slot 包含的键数量
 unsigned int countKeysInSlot(unsigned int hashslot) {
     zskiplist *zsl = server.cluster->slots_to_keys;
@@ -2287,3 +2295,4 @@ unsigned int countKeysInSlot(unsigned int hashslot) {
 
     return count;
 }
+

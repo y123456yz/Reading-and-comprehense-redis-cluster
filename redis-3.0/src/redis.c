@@ -491,7 +491,7 @@ struct evictionPoolEntry *evictionPoolAlloc(void);
 
 /* Low level logging. To use only for very big messages, otherwise
  * redisLog() is to prefer. */
-void redisLogRaw(int level, const char *msg) {
+void redisLogRaw(int level, const char *msg) { //日志这里是打开文件，写入，然后关闭，这里应该可以优化，只需打开一次即可
     const int syslogLevelMap[] = { LOG_DEBUG, LOG_INFO, LOG_NOTICE, LOG_WARNING };
     const char *c = ".-*#";
     FILE *fp;
@@ -2750,6 +2750,9 @@ int processCommand(redisClient *c) {
         return REDIS_OK;
     }
 
+   //addReplyErrorFormat(c,"yang test ...new command:%s", c->cmd->name);
+    
+
     /* Check if the user is authenticated */
     // 检查认证信息
     if (server.requirepass && !c->authenticated && c->cmd->proc != authCommand)
@@ -4243,7 +4246,7 @@ int main(int argc, char **argv) {
     redisAsciiArt();
 
     // 如果服务器不是运行在 SENTINEL 模式，那么执行以下代码
-    if (!server.sentinel_mode) {
+    if (!server.sentinel_mode) { //sentinel和集群只能二选1
         /* Things not needed when running in Sentinel mode. */
         // 打印问候语
         redisLog(REDIS_WARNING,"Server started, Redis version " REDIS_VERSION);
@@ -4254,7 +4257,7 @@ int main(int argc, char **argv) {
         // 从 AOF 文件或者 RDB 文件中载入数据
         loadDataFromDisk();
         // 启动集群？
-        if (server.cluster_enabled) {
+        if (server.cluster_enabled) { //在该函数前会先载入cluster配置nodes.conf，见initServer->clusterInit;
             if (verifyClusterConfigWithData() == REDIS_ERR) {
                 redisLog(REDIS_WARNING,
                     "You can't have keys in a DB different than DB 0 when in "
@@ -4268,7 +4271,7 @@ int main(int argc, char **argv) {
         // 打印本地套接字端口
         if (server.sofd > 0)
             redisLog(REDIS_NOTICE,"The server is now ready to accept connections at %s", server.unixsocket);
-    } else {
+    } else { //sentinel和集群只能二选1
         sentinelIsRunning();
     }
 

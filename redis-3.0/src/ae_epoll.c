@@ -149,7 +149,7 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
 
 /*
  * 获取可执行事件
- */
+ */ ////文件事件aeCreateFileEvent   时间事件aeCreateTimeEvent aeProcessEvents中执行文件和时间事件
 static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     aeApiState *state = eventLoop->apidata;
     int retval, numevents = 0;

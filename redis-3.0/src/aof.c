@@ -1640,7 +1640,7 @@ void aofUpdateCurrentSize(void) {
  * Handle this. 
  * * 当子线程完成 AOF 重写时，父进程调用这个函数。
  // 通过子进程调用rewriteAppendOnlyFileBackground写入临时文件，然后通过serverCron->backgroundRewriteDoneHandler把零食文件内容rename到制定的aof文件
- */ //子进程把命令全部写入AOF临时文件后，该函数把写入临时文件这段期间产生的写命令最近到临时文件中，然后rename到制定aof文件
+ */ //子进程把命令全部写入AOF临时文件后，该函数把写入临时文件这段期间产生的写命令最近到临时文件中，然后在backgroundRewriteDoneHandler通过rename到制定aof文件
 void backgroundRewriteDoneHandler(int exitcode, int bysignal) {
     if (!bysignal && exitcode == 0) {
         int newfd, oldfd;

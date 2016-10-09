@@ -452,6 +452,9 @@ int masterTryPartialResynchronization(redisClient *c) {
     2. 相反地，如果从服务器保存的运行ID和当前连接的主服务器的运行ID并不相同，那么说明从服务器断线之前复制的主服务器并不是
     当前连接的这个主服务器，主服务器将对从服务器执行完整重同步操作。
 
+    当从服务器对主服务器进行初次复制时，主服务器会将自己的运行ID传送给从服务器，而从服务器则会将这个运行ID保存起来。
+        当从服务器断线并重新连上一个主服务器时，从服务器将向当前连接的主服务器发送之前保存的运行ID:
+
     举个例子，假设从服务器原本正在复制一个运行ID为53b9b28df8042fdc9ab5e3fcbbbabf fld5dce2b3的主服务器，那么在网络断开，从服务器
 重新连接上主服务器之后，从服务器将向圭服务器发送这个运行ID，主服务器根据自己的运行ID是否53b9b28df8042fdc9ab5e3fcbbbabffld5dce2b3来
 判断是执行部分重同步还是执行完整重同步。
@@ -624,17 +627,17 @@ void syncCommand(redisClient *c) {
     if (!strcasecmp(c->argv[0]->ptr,"psync")) {
         // 尝试进行 PSYNC
         if (masterTryPartialResynchronization(c) == REDIS_OK) { //返回REDIS_ERR表示需要重同步
-            // 可执行 PSYNC
+            // 可执行 PSYNC    可以增量同步，把积压缓冲区数据发送过去即可
             server.stat_sync_partial_ok++;
             return; /* No full resync needed, return. */
         } else {
-            // 不可执行 PSYNC
+            // 不可执行 PSYNC   需要进行整体同步
             char *master_runid = c->argv[1]->ptr;
             
             /* Increment stats for failed PSYNCs, but only if the
              * runid is not "?", as this is used by slaves to force a full
              * resync on purpose when they are not albe to partially
-             * resync. */
+             * resync. */ //本来客户端期望进行增量式同步，但是确不满足条件(例如积压缓冲器写满循环覆盖了等)，单实际上进行了整体全量同步
             if (master_runid[0] != '?') server.stat_sync_partial_err++;
         }
     } else {
@@ -673,21 +676,31 @@ void syncCommand(redisClient *c) {
                 break;
         }
 
-        if (ln) {
+        if (ln) { 
+        //在发送给本服务器sync过来前，已经有服务器正在进行RDB文件重写了，那么我们就可以利用为之前第一个来的客户端二进行的RDB文件，等这个rdb文件写完成后，进行同步
+        //在本slave之前进行rdb重写在该if (server.rdb_child_pid != -1) {} else {}逻辑里面
+
             /* Perfect, the server is already registering differences for
              * another slave. Set the right state, and copy the buffer. */
             // 幸运的情况，可以使用目前 BGSAVE 所生成的 RDB
             copyClientOutputBuffer(c,slave);
             c->replstate = REDIS_REPL_WAIT_BGSAVE_END;
             redisLog(REDIS_NOTICE,"Waiting for end of BGSAVE for SYNC");
-        } else {
+        } else {//走到这里说明不是因为slave连接上来而进行的rdb重写，应该是因为敲了bgsave或者因为不停写命令而触发了redis进行bgsave。因此本slave实际上是第一个连到
+        //master的，因此要进行rdb重写
+
+
+        //因为虽然有RDB文件重写完成，但是不是因为
+        //slave而触发全量同步引起的rdb重写，而是因为敲了bgsave命令或者满足配置save time count而触发bgsave条件满足而引起rdb重写
             /* No way, we need to wait for the next BGSAVE in order to
              * register differences */
-            // 不好运的情况，必须等待下个 BGSAVE
-            c->replstate = REDIS_REPL_WAIT_BGSAVE_START;
+            // 不好运的情况，必须等待下个 BGSAVE     触发updateSlavesWaitingBgsave进行rdb重写
+            //配合updateSlavesWaitingBgsave阅读，处于这个状态的slave，该master需要为其进行RDB重写，因为这是第一个连上来的slave,如果在进行rdb重写过程中有其他slave连接上来，则也可以直接利用该RDB
+            c->replstate = REDIS_REPL_WAIT_BGSAVE_START;  //表示这个节点是第一个连上来的备服务器，所以需要做rdb
             redisLog(REDIS_NOTICE,"Waiting for next BGSAVE for SYNC");
         }
-    } else {
+    } else { 
+        
         /* Ok we don't have a BGSAVE in progress, let's start one */
         // 没有 BGSAVE 在进行，开始一个新的 BGSAVE
         redisLog(REDIS_NOTICE,"Starting BGSAVE for SYNC");
@@ -837,12 +850,15 @@ void replconfCommand(redisClient *c) {
 //RDB文件发送格式和普通命令字符串协议格式一样，$length\r\n+实际内容，rdb文件数据发送在updateSlavesWaitingBgsave->sendBulkToSlave，
 //rdb主从整体同步(非增量式)数据接收函数为readSyncBulkPayload，其他数据(包括主从增量式命令同步)接收解析见processMultibulkBuffer
 
-// master 将 RDB 文件发送给 slave 的写事件处理器
-void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
+// master 将 RDB 文件发送给 slave 的写事件处理器  //文件事件aeCreateFileEvent   时间事件aeCreateTimeEvent  aeProcessEvents中执行文件和时间事件
+void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) { //该函数执行在aeProcessEvents
     redisClient *slave = privdata;
     REDIS_NOTUSED(el);
     REDIS_NOTUSED(mask);
-    char buf[REDIS_IOBUF_LEN];
+    char buf[REDIS_IOBUF_LEN]; 
+    //通过修改REDIS_IOBUF_LEN为20，并且屏蔽掉该函数后面的aeDeleteFileEvent测试，write完所有数据后，
+    //下次epoll_wait还是会该函数执行，也就是如果不删除该event，则会多触发一次write事件，这也是为什么这里可以分块传输，每次传输16K完毕后，下次还可以
+    //执行到该函数，继续读取16K执行
     ssize_t nwritten, buflen;
 
     /* Before sending the RDB file, we send the preamble as configured by the
@@ -870,6 +886,7 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
     lseek(slave->repldbfd,slave->repldboff,SEEK_SET);
     // 读取 RDB 数据
     buflen = read(slave->repldbfd,buf,REDIS_IOBUF_LEN);
+    
     if (buflen <= 0) {
         redisLog(REDIS_WARNING,"Read error sending DB to slave: %s",
             (buflen == 0) ? "premature EOF" : strerror(errno));
@@ -886,11 +903,14 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
         return;
     }
 
+    
+
     // 如果写入成功，那么更新写入字节数到 repldboff ，等待下次继续写入
     slave->repldboff += nwritten;
 
     // 如果写入已经完成
     if (slave->repldboff == slave->repldbsize) {
+        
         // 关闭 RDB 文件描述符
         close(slave->repldbfd);
         slave->repldbfd = -1;
@@ -943,22 +963,25 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
 //RDB文件发送格式和普通命令字符串协议格式一样，$length\r\n+实际内容，rdb文件数据发送在updateSlavesWaitingBgsave->sendBulkToSlave，
 //rdb主从整体同步(非增量式)数据接收函数为readSyncBulkPayload，其他数据(包括主从增量式命令同步)接收解析见processMultibulkBuffer
 
-void updateSlavesWaitingBgsave(int bgsaveerr) {
+void updateSlavesWaitingBgsave(int bgsaveerr) { //把rdb文件内容传送到slave
     listNode *ln;
     int startbgsave = 0;
     listIter li;
 
     // 遍历所有 slave
     listRewind(server.slaves,&li);
-    while((ln = listNext(&li))) {
+    while((ln = listNext(&li))) { //li上保存的是本master的所有从服务器
         redisClient *slave = ln->value;
 
-        if (slave->replstate == REDIS_REPL_WAIT_BGSAVE_START) {
+        if (slave->replstate == REDIS_REPL_WAIT_BGSAVE_START) { //配合syncCommand阅读，说明需要进行RDB文件重写。因为虽然有RDB文件重写完成，但是不是因为
+        //slave而触发全量同步引起的rdb重写，而是因为敲了bgsave命令或者满足配置save time count而触发bgsave条件满足而引起rdb重写
             // 之前的 RDB 文件不能被 slave 使用，
             // 开始新的 BGSAVE
             startbgsave = 1;
             slave->replstate = REDIS_REPL_WAIT_BGSAVE_END;
-        } else if (slave->replstate == REDIS_REPL_WAIT_BGSAVE_END) {
+        } else if (slave->replstate == REDIS_REPL_WAIT_BGSAVE_END) { 
+        
+        //本slave对应的rdb文件重写完成，或者本slave连接到master的时候，刚好有其他slave触发了slave重写，则就不需在进行rdb重写，直接利用刚才进行rdb重写的rdb文件即可
 
             // 执行到这里，说明有 slave 在等待 BGSAVE 完成
 
@@ -1025,6 +1048,8 @@ void updateSlavesWaitingBgsave(int bgsaveerr) {
 }
 
 /* ----------------------------------- SLAVE -------------------------------- */
+
+//主备同步会专门创建一个repl_transfer_s套接字(connectWithMaster)来进行主备同步，同步完成后在replicationAbortSyncTransfer中关闭该套接字
 
 /* Abort the async download of the bulk dataset while SYNC-ing with master */
 // 停止下载 RDB 文件
@@ -1214,9 +1239,16 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
     正因为主服务器成为了从服务器的客户端，所以主服务器才可以通过发送写命令来改变从服务器的数掘库状态，不仅同步操作需要用到这一点，
     这也是主服务器对从服务器执行命令传播操作的基础
      */
+
+     /*
+    主备同步会专门创建一个repl_transfer_s套接字(connectWithMaster)来进行主备同步，同步完成后在replicationAbortSyncTransfer中关闭该套接字
+    主备同步完成后，主服务器要向本从服务器发送实时KV，则需要一个模拟的redisClient,因为redis都是通过redisClient中的fd来接收客户端发送的KV,
+    主备同步完成后的时候KV和主备心跳保活都是通过该master(redisClient)的fd来和主服务器通信的
+    */
         
         // 将主服务器设置成一个 redis client
-        // 注意 createClient 会为主服务器绑定事件，为接下来接收命令做好准备
+        // 注意 createClient 会为主服务器绑定事件，为接下来接收主服务器命令做好准备
+        //redis都是通过redisClient结构的fd来接收对端发送过来的KV
         server.master = createClient(server.repl_transfer_s);
         // 标记这个客户端为主服务器
         server.master->flags |= REDIS_MASTER;
@@ -1224,7 +1256,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
         server.master->authenticated = 1;
         // 更新复制状态
         server.repl_state = REDIS_REPL_CONNECTED;
-        // 设置主服务器的复制偏移量
+        // 设置主服务器的复制偏移量  表示本从服务器对应的offset
         server.master->reploff = server.repl_master_initial_offset;
         // 保存主服务器的 RUN ID
         memcpy(server.master->replrunid, server.repl_master_runid,
@@ -1670,6 +1702,8 @@ error:
     server.repl_state = REDIS_REPL_CONNECT;
     return;
 }
+
+//主备同步会专门创建一个repl_transfer_s套接字(connectWithMaster)来进行主备同步，同步完成后在replicationAbortSyncTransfer中关闭该套接字
 
 // 以非阻塞方式连接主服务器
 int connectWithMaster(void) {
@@ -2352,7 +2386,7 @@ long long replicationGetSlaveOffset(void) {
     long long offset = 0;
 
     if (server.masterhost != NULL) {
-        if (server.master) {
+        if (server.master) { //这个master是主备整体同步完成后，通信用的
             offset = server.master->reploff;
         } else if (server.cached_master) {
             offset = server.cached_master->reploff;

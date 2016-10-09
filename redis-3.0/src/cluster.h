@@ -6,7 +6,7 @@
  *----------------------------------------------------------------------------*/
 
 // 槽数量
-#define REDIS_CLUSTER_SLOTS 16384
+#define REDIS_CLUSTER_SLOTS 16384  //对应16K，也就是2的14次方
 // 集群在线
 #define REDIS_CLUSTER_OK 0          /* Everything looks ok */
 // 集群下线
@@ -58,9 +58,18 @@
 struct clusterNode;
 
 
+//客户端想服务端发送meet后，客户端通过和服务端建立连接来记录服务端节点clusterNode->link在clusterCron
+//服务端接收到连接后，通过clusterAcceptHandler建立客户端节点的clusterNode.link，见clusterAcceptHandler
+
+
+//server.cluster(clusterState)->clusterState.nodes(clusterNode)->clusterNode.link(clusterLink)
+//redisClient结构和clusterLink结构都有自己的套接字描述法和输入 输出缓冲区，区别在于，redisClient用于客户端
+//clusterLink用于集群中的连接节点
 /* clusterLink encapsulates everything needed to talk with a remote node. */
 // clusterLink 包含了与其他节点进行通讯所需的全部信息
-typedef struct clusterLink { //clusterNode->link
+typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clusterProcessPacket      
+//clusterLink创建的地方在clusterAcceptHandler->createClusterLink
+    //B节点连接到A节点，则A节点会创建一个clusterLink，并接收这个B节点相关的网络时间，其中的node就是B节点的clusterNode，fd为B连接A的时候的fd
 
     // 连接的创建时间
     mstime_t ctime;             /* Link creation time */
@@ -71,13 +80,16 @@ typedef struct clusterLink { //clusterNode->link
     // 输出缓冲区，保存着等待发送给其他节点的消息（message）。
     sds sndbuf;                 /* Packet send buffer */
 
-    // 输入缓冲区，保存着从其他节点接收到的消息。
+    // 输入缓冲区，保存着从其他节点接收到的消息。见clusterReadHandler
     sds rcvbuf;                 /* Packet reception buffer */
-
-    // 与这个连接相关联的节点，如果没有的话就为 NULL
+ 
+    // 与这个连接相关联的节点，如果没有的话就为 NULL   
+    //B节点连接到A节点，则A节点会创建一个clusterLink，并接收这个B节点相关的网络时间，其中的node就是B节点
     struct clusterNode *node;   /* Node related to this link if any, or NULL */
 
 } clusterLink;
+
+/*  一下这个标记赋值给clusterNode.flag */
 
 /* Cluster node flags and macros. */
 // 该节点为主节点  在集群情况下，在redis起来的时候如果发现配置是cluster模式则会设置本节点模式为nodes.conf中的配置，或者主备情况下主挂了后，被被
@@ -91,10 +103,15 @@ typedef struct clusterLink { //clusterNode->link
 #define REDIS_NODE_FAIL 8       /* The node is believed to be malfunctioning */
 // 该节点是当前节点自身
 #define REDIS_NODE_MYSELF 16    /* This node is myself */
+
+//在敲cluster meet IP port的时候，在clusterStartHandshake中把节点状态置为REDIS_NODE_HANDSHAKE  REDIS_NODE_MEET ，或者从配置文件node.conf中读到的就是该状态
 // 该节点还未与当前节点完成第一次 PING - PONG 通讯
 #define REDIS_NODE_HANDSHAKE 32 /* We have still to exchange the first ping */
-// 该节点没有地址
+// 该节点没有地址  clusterProcessPacket值置为该状态，或者从配置文件node.conf中读到的就是该状态
 #define REDIS_NODE_NOADDR   64  /* We don't know the address of this node */
+
+//在敲cluster meet IP port的时候，在clusterStartHandshake中把节点状态置为REDIS_NODE_HANDSHAKE  REDIS_NODE_MEET，或者从配置文件node.conf中读到的就是该状态
+
 // 当前节点还未与该节点进行过接触
 // 带有这个标识会让当前节点发送 MEET 命令而不是 PING 命令
 #define REDIS_NODE_MEET 128     /* Send a MEET message to this node */
@@ -126,9 +143,9 @@ struct clusterNodeFailReport {
 
 } typedef clusterNodeFailReport;
 
-
-// 节点状态
-struct clusterNode {
+//server.cluster(clusterState)->clusterState.nodes(clusterNode)->clusterNode.link(clusterLink)
+// 节点状态    节点创建在createClusterNode
+struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterProcessPacket
 
     // 创建节点的时间
     mstime_t ctime; /* Node object creation time. */
@@ -139,11 +156,33 @@ struct clusterNode {
 
     // 节点标识
     // 使用各种不同的标识值记录节点的角色（比如主节点或者从节点），
-    // 以及节点目前所处的状态（比如在线或者下线）。
+    // 以及节点目前所处的状态（比如在线或者下线）。  取值REDIS_NODE_MASTER  REDIS_NODE_PFAIL等
     int flags;      /* REDIS_NODE_... */ //取值可以参考clusterGenNodeDescription
 
     /* configepoch和currentepoch可以参考:Redis_Cluster的Failover设计.PPT */
     // 节点当前的配置纪元，用于实现故障转移 /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
+    //可以通过cluster set-config-epoch num来配置configEpoch,见clusterCommand
+    //实际上各个节点自己的configEpoch通过报文交互，在clusterHandleConfigEpochCollision中进行设置，
+    //也就是最终server.cluster->currentEpoch会和集群中节点node.configEpoch值最大的相同，如果没有配置set-config-epoch的话，
+    //也就是集群节点数减去1(因为epoch从0开始)
+
+    /*
+    Current Epoch用于集群的epoch，代表集群的版本。
+    Config Epoch，每个master都有config Epoch代表Master的版本
+    每个新加入的节点，current Epoch初始为0，通过ping/pong消息交换的话，如果发送节点的epoch高于自己的，
+    则将自己的currentEpoch更新为发送者的。经过N轮消息交换以后，每个节点的current epoch保持一致。
+    clusterState.currentEpoch可以通过cluster info命令中的cluster_current_epoch获取到
+    Current Epoch用于failover
+
+    
+    Redis提供了解决冲突的办法，节点之间消息交换过程中，会把自己的currentEpoch和configEpoch带过去，如果发现发送者
+    的configEpoch和自己的configEpoch相同，则将自己的Epoch+1，经过N轮以后使每个master的configEpoch不一样
+    Slave也有configEpoch，是通过master交互得到的Master的configEpoch。而currentEpoch是整个集群的版本号，所有节点该值相同
+    
+    每个master的configEpoch必须不同，当发生配置冲突以后，采用高版本的配置。通过多次交互后，集群中每个节点的configEpoch
+    会不同，如果没有配置set-config-epoch的话，各个节点的clusterNode.configEpoch分别为0 - n,例如3个节点，则每个节点分别对应
+    0 1 2，可以通过cluster node中connected前的数值查看
+    */ //赋值见clusterHandleConfigEpochCollision
     uint64_t configEpoch; /* Last configEpoch observed for this node */
 
     // 由这个节点负责处理的槽
@@ -151,7 +190,10 @@ struct clusterNode {
     // 每个字节的每个位记录了一个槽的保存状态
     // 位的值为 1 表示槽正由本节点处理，值为 0 则表示槽并非本节点处理
     // 比如 slots[0] 的第一个位保存了槽 0 的保存情况
-    // slots[0] 的第二个位保存了槽 1 的保存情况，以此类推
+    // slots[0] 的第二个位保存了槽 1 的保存情况，以此类推     位图表示16384个槽位  记录该clusterNode节点处理的槽
+    
+    //clusterNode->slots记录本clusterNode节点处理的槽，clusterState->nodes记录了所有的clusterNode节点信息，各个节点的slots
+    //指定了本节点处理的槽，因此clusterState->nodes可以获取到所有槽所属欲那个节点
     unsigned char slots[REDIS_CLUSTER_SLOTS/8]; /* slots handled by this node */
 
     // 该节点负责处理的槽数量
@@ -166,7 +208,7 @@ struct clusterNode {
     // 如果这是一个从节点，那么指向主节点
     struct clusterNode *slaveof; /* pointer to the master node */
 
-    // 最后一次发送 PING 命令的时间
+    // 最后一次发送 PING 命令的时间   赋值见clusterSendPing
     mstime_t ping_sent;      /* Unix time we sent latest ping */
 
     // 最后一次接收 PONG 回复的时间戳
@@ -190,7 +232,11 @@ struct clusterNode {
     // 节点的端口号
     int port;                   /* Latest known port of this node */
 
-    // 保存连接节点所需的有关信息
+    
+    //客户端想服务端发送meet后，客户端通过和服务端建立连接来记录服务端节点clusterNode->link在clusterCron
+    //服务端接收到连接后，通过clusterAcceptHandler建立客户端节点的clusterNode.link，见clusterAcceptHandler
+    
+    // 保存连接节点所需的有关信息   link节点创建和赋值见clusterCron.createClusterLink
     clusterLink *link;          /* TCP/IP link with this node */
 
     // 一个链表，记录了所有其他节点对该节点的下线报告
@@ -203,24 +249,56 @@ typedef struct clusterNode clusterNode;
 // 集群状态，每个节点都保存着一个这样的状态，记录了它们眼中的集群的样子。
 // 另外，虽然这个结构主要用于记录集群的属性，但是为了节约资源，
 // 有些与节点有关的属性，比如 slots_to_keys 、 failover_auth_count 
-// 也被放到了这个结构里面。
+// 也被放到了这个结构里面。   集群数据交互接收的地方在clusterProcessPacket
+
+//server.cluster(clusterState)->clusterState.nodes(clusterNode)->clusterNode.link(clusterLink)
 typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在clusterLoadConfig
 
     // 指向当前节点的指针
     clusterNode *myself;  /* This node */
 
     /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
-    // 集群当前的配置纪元，用于实现故障转移
-    uint64_t currentEpoch;
+    // 集群当前的配置纪元，用于实现故障转移   这个也就是集群中所有节点中最大currentEpoch 
 
-    // 集群当前的状态：是在线还是下线
+    //实际上各个节点自己的configEpoch通过报文交互，在clusterHandleConfigEpochCollision中进行设置，
+    //也就是最终server.cluster->currentEpoch会和集群中节点node.configEpoch值最大的相同，如果没有配置set-config-epoch的话，
+    //也就是集群节点数减去1(因为epoch从0开始)
+    //Epoch是一个只增的版本号。每当有事件发生，epoch向上增长。这里的事件是指节点加入、failover等
+     /*
+    Current Epoch用于集群的epoch，代表集群的版本。
+    Config Epoch，每个master都有config Epoch代表Master的版本
+    每个新加入的节点，current Epoch初始为0，通过ping/pong消息交换的话，如果发送节点的epoch高于自己的，
+    则将自己的currentEpoch更新为发送者的。经过N轮消息交换以后，每个节点的current epoch保持一致。
+    clusterState.currentEpoch可以通过cluster info命令中的cluster_current_epoch获取到
+    Current Epoch用于failover
+
+    
+    Redis提供了解决冲突的办法，节点之间消息交换过程中，会把自己的currentEpoch和configEpoch带过去，如果发现发送者
+    的configEpoch和自己的configEpoch相同，则将自己的Epoch+1，经过N轮以后使每个master的configEpoch不一样
+    Slave也有configEpoch，是通过master交互得到的Master的configEpoch。而currentEpoch是整个集群的版本号，所有节点该值相同
+    
+    每个master的configEpoch必须不同，当发生配置冲突以后，采用高版本的配置。通过多次交互后，集群中每个节点的configEpoch
+    会不同，如果没有配置set-config-epoch的话，各个节点的clusterNode.configEpoch分别为0 - n,例如3个节点，则每个节点分别对应
+    0 1 2，可以通过cluster node中connected前的数值查看
+    */ //currentEpoch可以通过cluster info命令中的cluster_current_epoch获取到   configEpoch可以通过cluster node中connected前的数值查看
+    uint64_t currentEpoch; //在clusterHandleConfigEpochCollision中会自增
+
+    // 集群当前的状态：是在线还是下线    在clusterUpdateState中更新集群状态
     int state;            /* REDIS_CLUSTER_OK, REDIS_CLUSTER_FAIL, ... */
 
-    // 集群中至少处理着一个槽的节点的数量。
-    int size;             /* Num of master nodes with at least one slot */
+    // 集群中至少处理着一个槽的节点的数量。  clusterUpdateState中跟新   在线并且正在处理至少一个槽的 master 的数量
+    //注意:包括已下线的，因为已下线的node还是会在dict *nodes中 
+    int size;             /* Num of master nodes with at least one slot */ //默认从1开始，而不是从0开始
 
+    //节点B通过cluster meet A-IP A-PORT把B节点添加到A节点在集群的时候，A节点的nodes里面就会有B节点的信息
+    //然后A节点应答pong给B，B收到后也会把A节点添加到自己的nodes中
     // 集群节点名单（包括 myself 节点）
     // 字典的键为节点的名字，字典的值为 clusterNode 结构
+
+    //clusterNode->slots记录本clusterNode节点处理的槽，clusterState->nodes记录了所有的clusterNode节点信息，各个节点的slots
+    //指定了本节点处理的槽，因此clusterState->nodes可以获取到所有槽所属欲那个节点
+
+    //注意:如果加到集群中的某个节点下线了，这个主节点的clusterNode还是会在该nodes上面，只是cluster nodes的时候会把该节点标记为下线
     dict *nodes;          /* Hash table of name -> clusterNode structures */
 
     // 节点黑名单，用于 CLUSTER FORGET 命令
@@ -297,7 +375,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     // 通过 cluster 连接发送的消息数量
     long long stats_bus_messages_sent;  /* Num of msg sent via cluster bus. */
 
-    // 通过 cluster 接收到的消息数量
+    // 通过 cluster 接收到的消息数量   其他节点发往本节点的报文字节数
     long long stats_bus_messages_received; /* Num of msg rcvd via cluster bus.*/
 
 } clusterState;
@@ -316,17 +394,20 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
  * kind of packet. PONG is the reply to ping, in the exact format as a PING,
  * while MEET is a special PING that forces the receiver to add the sender
  * as a node (if it is not already in the list). */
+
+/* 下面这些赋值给clusterMsg.type   以下消息的处理统一在clusterReadHandler->clusterProcessPacket */
+ 
 // 注意，PING 、 PONG 和 MEET 实际上是同一种消息。
 // PONG 是对 PING 的回复，它的实际格式也为 PING 消息，
 // 而 MEET 则是一种特殊的 PING 消息，用于强制消息的接收者将消息的发送者添加到集群中
 // （如果节点尚未在节点列表中的话）
-// PING
+// PING  MEET消息和PING消息都在clusterCron中发送
 #define CLUSTERMSG_TYPE_PING 0          /* Ping */
 // PONG （回复 PING）
 #define CLUSTERMSG_TYPE_PONG 1          /* Pong (reply to Ping) */
-// 请求将某个节点添加到集群中
+// 请求将某个节点添加到集群中   MEET消息和PING消息都在clusterCron中发送
 #define CLUSTERMSG_TYPE_MEET 2          /* Meet "let's join" message */
-// 将某个节点标记为 FAIL
+// 将某个节点标记为 FAIL   通过clusterBuildMessageHdr组包发送
 #define CLUSTERMSG_TYPE_FAIL 3          /* Mark node xxx as failing */
 // 通过发布与订阅功能广播消息
 #define CLUSTERMSG_TYPE_PUBLISH 4       /* Pub/Sub Publish propagation */
@@ -334,7 +415,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
 #define CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST 5 /* May I failover? */
 // 消息的接收者同意向消息的发送者投票
 #define CLUSTERMSG_TYPE_FAILOVER_AUTH_ACK 6     /* Yes, you have my vote */
-// 槽布局已经发生变化，消息发送者要求消息接收者进行相应的更新
+// 槽布局已经发生变化，消息发送者要求消息接收者进行相应的更新    通过clusterBuildMessageHdr组包发送
 #define CLUSTERMSG_TYPE_UPDATE 7        /* Another node slots configuration */
 // 为了进行手动故障转移，暂停各个客户端
 #define CLUSTERMSG_TYPE_MFSTART 8       /* Pause clients for manual failover */
@@ -342,8 +423,9 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
 /* Initially we don't know our "name", but we'll find it once we connect
  * to the first node, using the getsockname() function. Then we'll use this
  * address for all the next messages. */
-
-typedef struct {
+//clusterMsg是集群节点通信的消息头，消息体是结构clusterMsgData，
+//clusterMsgData包括clusterMsgDataGossip、clusterMsgDataFail、clusterMsgDataPublish、clusterMsgDataUpdate
+typedef struct {  //ping  pong meet消息用该结构，见clusterProcessPacket
 
     // 节点的名字
     // 在刚开始的时候，节点的名字会是随机的
@@ -370,6 +452,8 @@ typedef struct {
 
 } clusterMsgDataGossip;
 
+//clusterMsg是集群节点通信的消息头，消息体是结构clusterMsgData，
+//clusterMsgData包括clusterMsgDataGossip、clusterMsgDataFail、clusterMsgDataPublish、clusterMsgDataUpdate
 typedef struct {
 
     // 下线节点的名字
@@ -377,6 +461,8 @@ typedef struct {
 
 } clusterMsgDataFail;
 
+//clusterMsg是集群节点通信的消息头，消息体是结构clusterMsgData，
+//clusterMsgData包括clusterMsgDataGossip、clusterMsgDataFail、clusterMsgDataPublish、clusterMsgDataUpdate
 typedef struct {
 
     // 频道名长度
@@ -392,6 +478,8 @@ typedef struct {
 
 } clusterMsgDataPublish;
 
+//clusterMsg是集群节点通信的消息头，消息体是结构clusterMsgData，
+//clusterMsgData包括clusterMsgDataGossip、clusterMsgDataFail、clusterMsgDataPublish、clusterMsgDataUpdate
 typedef struct {
 
     // 节点的配置纪元  /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
@@ -405,6 +493,8 @@ typedef struct {
 
 } clusterMsgDataUpdate;
 
+//clusterMsg是集群节点通信的消息头，消息体是结构clusterMsgData，
+//clusterMsgData包括clusterMsgDataGossip、clusterMsgDataFail、clusterMsgDataPublish、clusterMsgDataUpdate
 union clusterMsgData {//clusterMsg中的data字段
 
      /* PING, MEET and PONG */ /*
@@ -412,8 +502,8 @@ union clusterMsgData {//clusterMsg中的data字段
      */
     struct {
         /* Array of N clusterMsgDataGossip structures */
-        // 每条消息都包含两个 clusterMsgDataGossip 结构
-        clusterMsgDataGossip gossip[1];
+        // 每条消息都包含两个 clusterMsgDataGossip 结构     ?????????为什么这里可以存两个成员进来
+        clusterMsgDataGossip gossip[1];  
     } ping;
 
     /* FAIL */
@@ -433,8 +523,13 @@ union clusterMsgData {//clusterMsg中的data字段
 
 };
 
-// 用来表示集群消息的结构（消息头，header）
-typedef struct {
+//clusterMsg是集群节点通信的消息头，消息体是结构clusterMsgData，
+//clusterMsgData包括clusterMsgDataGossip、clusterMsgDataFail、clusterMsgDataPublish、clusterMsgDataUpdate
+
+
+//clustermsg是集群节点通信的消息头，消息体是结构clusterMsgData
+// 用来表示集群消息的结构（消息头，header）   clusterMsg在clusterBuildMessageHdr中进行组包
+typedef struct { //内部通信直接通过该结构发送，解析该结构在clusterProcessPacket
     char sig[4];        /* Siganture "RCmb" (Redis Cluster message bus). */
     // 消息的长度（包括这个消息头的长度和消息正文的长度）
     uint32_t totlen;    /* Total length of this message */
@@ -444,18 +539,21 @@ typedef struct {
     /*
     因为MEET、PING、PONG三种消息都使用相同的消息正文，所以节点通过消息头的type属性来判断一条消息是MEET消息、PING消息还是PONG消息。
      */
-    // 消息的类型
+    // 消息的类型  取值CLUSTERMSG_TYPE_PING等
     uint16_t type;      /* Message type */
 
     // 消息正文包含的节点信息数量
     // 只在发送 MEET 、 PING 和 PONG 这三种 Gossip 协议消息时使用
-    uint16_t count;     /* Only used for some kind of messages. */
+    uint16_t count;     /* Only used for some kind of messages. */ //代表携带的消息体个数，可以参考clusterSendPing
 
-    // 消息发送者的配置纪元  /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
+    //赋值来自于server.cluster->currentEpoch，见clusterBuildMessageHdr  
+    // 消息发送者的配置纪元   也就是当前节点所在集群的版本号  /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     uint64_t currentEpoch;  /* The epoch accordingly to the sending node. */
 
     // 如果消息发送者是一个主节点，那么这里记录的是消息发送者的配置纪元
-    // 如果消息发送者是一个从节点，那么这里记录的是消息发送者正在复制的主节点的配置纪元 /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
+    // 如果消息发送者是一个从节点，那么这里记录的是消息发送者正在复制的主节点的配置纪元 
+    /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
+    //见clusterBuildMessageHdr，当前节点的Epoch，每个节点自己的Epoch不一样，可以参考clusterNode->configEpoch
     uint64_t configEpoch;   /* The config epoch if it's a master, or the last
                                epoch advertised by its master if it is a
                                slave. */
@@ -488,7 +586,7 @@ typedef struct {
     // 消息发送者所处集群的状态
     unsigned char state; /* Cluster state from the POV of the sender */
 
-    // 消息标志
+    // 消息标志   取值CLUSTERMSG_FLAG0_PAUSED等
     unsigned char mflags[3]; /* Message flags: CLUSTERMSG_FLAG[012]_... */
 
     // 消息的正文（或者说，内容）

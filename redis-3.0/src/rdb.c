@@ -1079,6 +1079,7 @@ werr:
 并获取RDB同步文件，然后redis3连接上来从新获取redis2的rdb文件，这样全网就一致了
 
 如果本服务器执行了slaveof ip port,但是该ip port的服务器没有起来，也就是连接不上，那么本服务器就拒绝接受从服务器的syn psyn请求
+//在updateSlavesWaitingBgsave中把重写的rdb文件传输到slave
 */
 int rdbSaveBackground(char *filename) {
     pid_t childpid;
@@ -1102,7 +1103,7 @@ int rdbSaveBackground(char *filename) {
         /* Child */
 
         // 关闭网络连接 fd
-        closeListeningSockets(0);
+        closeListeningSockets(0); //注意这里是子进程，子进程会继承父进程的listen对应的fd，需要关闭，避免客户端连接被子进程接收了
 
         // 设置进程的标题，方便识别
         redisSetProcTitle("redis-rdb-bgsave");

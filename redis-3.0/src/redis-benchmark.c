@@ -728,9 +728,11 @@ int main(int argc, const char **argv)
     count = config.loop_count_start;
     /* Run default benchmark suite. */
     data = zmalloc(config.datasize+1);
+    memset(data,'x',config.datasize);
+    data[config.datasize] = '\0';
     do {//持续写数据用./src/redis-benchmark -h 172.16.3.44 -p 11112 -c 2 -n 2 -d 10 -q -l -k 1
-        memset(data,'x',config.datasize);
-        data[config.datasize] = '\0';
+        /*memset(data,'x',config.datasize);
+        data[config.datasize] = '\0';*/
 
         /*if (test_is_selected("ping_inline") || test_is_selected("ping"))
             benchmark("PING_INLINE","PING\r\n",6);
@@ -757,25 +759,26 @@ int main(int argc, const char **argv)
             len = redisFormatCommand(&cmd,"INCR counter:__rand_int__");
             benchmark("INCR",cmd,len);
             free(cmd);
-        }*/
+        }
 
         if (test_is_selected("lpush")) {
             len = redisFormatCommand(&cmd,"LPUSH mylist %lld_%s",count, data);
             benchmark("LPUSH",cmd,len);
             free(cmd);
-        }
+        }*/
 
        /* if (test_is_selected("lpop")) {
             len = redisFormatCommand(&cmd,"LPOP mylist");
             benchmark("LPOP",cmd,len);
             free(cmd);
-        }*/
+        }
 
         if (test_is_selected("sadd")) {
             len = redisFormatCommand(&cmd, "SADD myset element:__rand_int__%lld", count);
             benchmark("SADD",cmd,len);
             free(cmd);
         }
+       */
 
        /*if (test_is_selected("spop")) {
             len = redisFormatCommand(&cmd,"SPOP myset");

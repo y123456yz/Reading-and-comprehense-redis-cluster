@@ -42,6 +42,10 @@
 #include <sys/file.h>
 
 /*
+http://www.cnblogs.com/tankaixiong/articles/4022646.html
+
+http://blog.csdn.net/dc_726/article/details/48552531
+
 集群  
 CLUSTER INFO 打印集群的信息  
 CLUSTER NODES 列出集群当前已知的所有节点（node），以及这些节点的相关信息。  
@@ -372,7 +376,7 @@ fmterr:
 //遍历所有node节点获取对应的节点master slave等信息，例如:4ae3f6e2ff456e6e397ea6708dac50a16807911c 192.168.1.103:7000 myself,slave dc824af0bff649bb292dbf5b37307a54ed4d361f 0 0 0 connected
 //可以通过cluster nodes命令获取，最终会写入nodes.conf
 
-// 写入 nodes.conf 文件
+// 写入 nodes.conf 文件  这里面记录的内容和cluster nodes命令看到的信息基本相同
 int clusterSaveConfig(int do_fsync) {
     sds ci;
     size_t content_size;
@@ -420,9 +424,9 @@ err:
     return -1;
 }
 
-// 尝试写入 nodes.conf 文件，失败则退出
+// 尝试写入 nodes.conf 文件，失败则退出。只要节点configEpoch发生变化，或者节点failover则会写nodes.conf配置文件
 void clusterSaveConfigOrDie(int do_fsync) {
-    if (clusterSaveConfig(do_fsync) == -1) {
+    if (clusterSaveConfig(do_fsync) == -1) { // 这里面记录的内容和cluster nodes命令看到的信息基本相同
         redisLog(REDIS_WARNING,"Fatal: can't update cluster config file.");
         exit(1);
     }
@@ -520,7 +524,7 @@ void clusterInit(void) {
     /* Port sanity check II
      * The other handshake port check is triggered too late to stop
      * us from trying to use a too-high cluster port number. */
-    if (server.port > (65535-REDIS_CLUSTER_PORT_INCR)) {
+    if (server.port > (65535-REDIS_CLUSTER_PORT_INCR)) { //因为集群内部通信端口是监听端口加REDIS_CLUSTER_PORT_INCR，见下面
         redisLog(REDIS_WARNING, "Redis port number too high. "
                    "Cluster communication port is 10,000 port "
                    "numbers higher than your Redis port. "
@@ -536,6 +540,7 @@ void clusterInit(void) {
     } else {
         int j;
 
+        /* 集群内部网络时间处理 */
         for (j = 0; j < server.cfd_count; j++) {
             // 关联监听事件处理器
             if (aeCreateFileEvent(server.el, server.cfd[j], AE_READABLE,
@@ -655,6 +660,13 @@ void freeClusterLink(clusterLink *link) {
 // 监听事件处理器
 
 #define MAX_CLUSTER_ACCEPTS_PER_CALL 1000
+
+//客户端想服务端发送meet后，客户端通过和服务端建立连接来记录服务端节点clusterNode->link在clusterCron
+//服务端接收到连接后，通过clusterAcceptHandler建立客户端节点的clusterNode.link，见clusterAcceptHandler
+
+
+//A通过cluster meet bip bport  B后，B端在clusterAcceptHandler->clusterReadHandler接收连接，A端通过
+ //clusterCommand->clusterStartHandshake触发clusterCron->anetTcpNonBlockBindConnect连接服务器
 void clusterAcceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     int cport, cfd;
     int max = MAX_CLUSTER_ACCEPTS_PER_CALL;
@@ -975,6 +987,7 @@ int clusterCountNonFailingSlaves(clusterNode *n) {
     return okslaves;
 }
 
+//节点创建在clusterAddNode  节点释放在freeClusterNode
 // 释放节点
 void freeClusterNode(clusterNode *n) {
     sds nodename;
@@ -999,7 +1012,7 @@ void freeClusterNode(clusterNode *n) {
 }
 
 /* Add a node to the nodes hash table */
-// 将给定 node 添加到节点表里面
+// 将给定 node 添加到节点表里面   
 int clusterAddNode(clusterNode *node) {
     int retval;
      // 将 node 添加到当前节点的 nodes 表中    // 这样接下来当前节点就会创建连向 node 的节点
@@ -1396,8 +1409,9 @@ int clusterHandshakeInProgress(char *ip, int port) {
  *          已经有握手在进行中了。 
  * EINVAL - IP or port are not valid.  
  *          ip 或者 port 参数不合法。
- */
-int clusterStartHandshake(char *ip, int port) {
+ */ //A通过cluster meet bip bport  B后，B端在clusterAcceptHandler->clusterReadHandler接收连接，A端通过
+ //clusterCommand->clusterStartHandshake触发clusterCron->anetTcpNonBlockBindConnect连接服务器
+int clusterStartHandshake(char *ip, int port) {//注意该函数没有触发connect，触发connect在clusterCron->anetTcpNonBlockBindConnect
     clusterNode *n;
     char norm_ip[REDIS_IP_STR_LEN];
     struct sockaddr_storage sa;
@@ -1448,7 +1462,9 @@ int clusterStartHandshake(char *ip, int port) {
     // 当 HANDSHAKE 完成时，当前节点会取得给定地址节点的真正名字 
     // 到时会用真名替换随机名
 
-    n = createClusterNode(NULL,REDIS_NODE_HANDSHAKE|REDIS_NODE_MEET);
+    //在A的客户端敲cluster meet B后，A上会创建B的clusterNode，但是还没有clusterNode.link信息，在clusterCron添加
+    // 但是还没有发送meet信息给B，在clusterCron发送
+    n = createClusterNode(NULL,REDIS_NODE_HANDSHAKE|REDIS_NODE_MEET); //节点信息是clusterNode，本节点和该节点的连接信息是clusterNode.link
     memcpy(n->ip,norm_ip,sizeof(n->ip));
     n->port = port;
 
@@ -1865,7 +1881,7 @@ void clusterUpdateSlotsConfigWith(clusterNode *sender, uint64_t senderConfigEpoc
  * This means that even if there are multiple nodes colliding, the node
  * with the greatest Node ID never moves forward, so eventually all the nodes
  * end with a different configuration epoch.
- */
+ */ //对方这个sender节点的configEpoch和本节点的configEpoch相同，则让自己的configEpoch加1，同时更新整个集群的版本号currentEpoch
 void clusterHandleConfigEpochCollision(clusterNode *sender) {
     /* Prerequisites: nodes have the same configEpoch and are both masters. */
     if (sender->configEpoch != myself->configEpoch ||
@@ -1874,7 +1890,9 @@ void clusterHandleConfigEpochCollision(clusterNode *sender) {
     if (memcmp(sender->name,myself->name,REDIS_CLUSTER_NAMELEN) <= 0) return;
     /* Get the next ID available at the best of this node knowledge. */
     server.cluster->currentEpoch++;
-    myself->configEpoch = server.cluster->currentEpoch;
+
+    //对方这个sender节点的configEpoch和本节点的configEpoch相同，则让自己的configEpoch加1，同时更新整个集群的版本号currentEpoch
+    myself->configEpoch = server.cluster->currentEpoch; //通过这里可以保证每个节点的configEpoch不同
     clusterSaveConfigOrDie(1);
     redisLog(REDIS_VERBOSE,
         "WARNING: configEpoch collision with node %.40s."
@@ -1899,7 +1917,7 @@ void clusterHandleConfigEpochCollision(clusterNode *sender) {
  * 如果函数返回 1 ，那么说明处理信息时没有遇到问题，连接依然可用。
  * 如果函数返回 0 ，那么说明信息处理时遇到了不一致问题
  * （比如接收到的 PONG 是发送自不正确的发送者 ID 的），连接已经被释放。
- */
+ */ //clusterReadHandler->clusterProcessPacket
 int clusterProcessPacket(clusterLink *link) {
 
    // 指向消息头
@@ -1935,8 +1953,8 @@ int clusterProcessPacket(clusterLink *link) {
         uint16_t count = ntohs(hdr->count);
         uint32_t explen; /* expected length of this packet */
 
-        explen = sizeof(clusterMsg)-sizeof(union clusterMsgData);
-        explen += (sizeof(clusterMsgDataGossip)*count);
+        explen = sizeof(clusterMsg)-sizeof(union clusterMsgData); 
+        explen += (sizeof(clusterMsgDataGossip)*count); //ping pong meet消息体
         if (totlen != explen) return 1;
     } else if (type == CLUSTERMSG_TYPE_FAIL) {
         uint32_t explen = sizeof(clusterMsg)-sizeof(union clusterMsgData);
@@ -1965,7 +1983,7 @@ int clusterProcessPacket(clusterLink *link) {
     }
 
     /* Check if the sender is a known node. */
-    // 查找发送者节点
+    // 查找发送者节点  确定是哪个节点发送的报文到本几点
     sender = clusterLookupNode(hdr->sender);
     // 节点存在，并且不是 HANDSHAKE 节点    // 那么个更新节点的配置纪元信息
     if (sender && !nodeInHandshake(sender)) {
@@ -1976,7 +1994,8 @@ int clusterProcessPacket(clusterLink *link) {
             server.cluster->currentEpoch = senderCurrentEpoch;
         /* Update the sender configEpoch if it is publishing a newer one. */
         if (senderConfigEpoch > sender->configEpoch) {
-            sender->configEpoch = senderConfigEpoch;
+            //本地要更新发送者节点的configEpoch
+            sender->configEpoch = senderConfigEpoch; //更新发送则节点的configEpoch在本地server.cluster->nodes所指向节点(也就是发送节点的)configEpoll
             clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG|
                                  CLUSTER_TODO_FSYNC_CONFIG);
         }
@@ -2333,7 +2352,8 @@ int clusterProcessPacket(clusterLink *link) {
          * the problem. */
         if (sender &&
             nodeIsMaster(myself) && nodeIsMaster(sender) &&
-            senderConfigEpoch == myself->configEpoch)
+            senderConfigEpoch == myself->configEpoch) 
+        //对方这个sender节点的configEpoch和本节点的configEpoch相同，则让自己的configEpoch加1，同时更新整个集群的版本号currentEpoch
         {
             clusterHandleConfigEpochCollision(sender);
         }
@@ -2528,6 +2548,9 @@ void clusterWriteHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         aeDeleteFileEvent(server.el, link->fd, AE_WRITABLE);
 }
 
+//A通过cluster meet bip bport  B后，B端在clusterAcceptHandler->clusterReadHandler接收连接，A端通过
+ //clusterCommand->clusterStartHandshake触发clusterCron->anetTcpNonBlockBindConnect连接服务器
+
 /* Read data. Try to read the first field of the header first to check the
  * full length of the packet. When a whole packet is in memory this function
  * will call the function to process the packet. And so forth. */
@@ -2665,8 +2688,8 @@ void clusterBroadcastMessage(void *buf, size_t len) {
 }
 
 /* Build the message header */
-// 构建信息
-void clusterBuildMessageHdr(clusterMsg *hdr, int type) {
+// 构建信息   集群见节点交互信息的通用头部信息
+void clusterBuildMessageHdr(clusterMsg *hdr, int type) { //type取值CLUSTERMSG_TYPE_PING等
     int totlen = 0;
     uint64_t offset;
     clusterNode *master;
@@ -2727,11 +2750,12 @@ void clusterBuildMessageHdr(clusterMsg *hdr, int type) {
 
     /* Set the replication offset. */
      // 设置复制偏移量
-    if (nodeIsSlave(myself))
+    if (nodeIsSlave(myself)) //本节点是从节点
         offset = replicationGetSlaveOffset();
-    else
+    else //本节点是主节点
         offset = server.master_repl_offset;
-    hdr->offset = htonu64(offset);
+        
+    hdr->offset = htonu64(offset); //本几点自己的复制偏移量
 
     /* Set the message flags. */
     if (nodeIsMaster(myself) && server.cluster->mf_end)
@@ -2773,7 +2797,7 @@ void clusterSendPing(clusterLink *link, int type) {
      // freshnodes 的数量是节点目前的 nodes 表中的节点数量减去 2   
      // 这里的 2 指两个节点，一个是 myself 节点（也即是发送信息的这个节点）
      // 另一个是接受 gossip 信息的节点
-    int freshnodes = dictSize(server.cluster->nodes)-2;
+    int freshnodes = dictSize(server.cluster->nodes)-2; //出去本节点和接收本ping信息的节点外，整个集群中有多少其他节点
 
    // 如果发送的信息是 PING ，那么更新最后一次发送 PING 命令的时间戳
     if (link->node && type == CLUSTERMSG_TYPE_PING)
@@ -2792,7 +2816,7 @@ void clusterSendPing(clusterLink *link, int type) {
         dictEntry *de = dictGetRandomKey(server.cluster->nodes);
         clusterNode *this = dictGetVal(de);
 
-        clusterMsgDataGossip *gossip;
+        clusterMsgDataGossip *gossip; ////ping  pong meet消息体部分用该结构
         int j;
 
         /* In the gossip section don't include:
@@ -2818,7 +2842,7 @@ void clusterSendPing(clusterLink *link, int type) {
          // 检查被选中节点是否已经在 hdr->data.ping.gossip 数组里面       
          // 如果是的话说明这个节点之前已经被选中了   
          // 不要再选中它（否则就会出现重复）
-        for (j = 0; j < gossipcount; j++) {
+        for (j = 0; j < gossipcount; j++) {  //这里是避免前面随机选择clusterNode的时候重复选择相同的节点
             if (memcmp(hdr->data.ping.gossip[j].nodename,this->name,
                     REDIS_CLUSTER_NAMELEN) == 0) break;
         }
@@ -3648,7 +3672,7 @@ void clusterCron(void) {
         }
 
         // 为未创建连接的节点创建连接
-        if (node->link == NULL) {
+        if (node->link == NULL) { //对端节点clusterNode.link在这里创建和赋值
             int fd;
             mstime_t old_ping_sent;
             clusterLink *link;
@@ -3663,9 +3687,15 @@ void clusterCron(void) {
                     server.neterr);
                 continue;
             }
+
+            //客户端想服务端发送meet后，客户端通过和服务端建立连接来记录服务端节点clusterNode->link在clusterCron
+            //服务端接收到连接后，通过clusterAcceptHandler建立客户端节点的clusterNode.link，见clusterAcceptHandler
             link = createClusterLink(node);
             link->fd = fd;
             node->link = link;
+
+            //A通过cluster meet bip bport  B后，B端在clusterAcceptHandler->clusterReadHandler接收连接，A端通过
+            //clusterCommand->clusterStartHandshake触发clusterCron->anetTcpNonBlockBindConnect连接服务器
             aeCreateFileEvent(server.el,link->fd,AE_READABLE,
                     clusterReadHandler,link);
             /* Queue a PING in the new connection ASAP: this is crucial
@@ -3678,7 +3708,7 @@ void clusterCron(void) {
              // 如果节点被标记为 MEET ，那么发送 MEET 命令，否则发送 PING 命令
             old_ping_sent = node->ping_sent;
             clusterSendPing(link, node->flags & REDIS_NODE_MEET ?
-                    CLUSTERMSG_TYPE_MEET : CLUSTERMSG_TYPE_PING);
+                    CLUSTERMSG_TYPE_MEET : CLUSTERMSG_TYPE_PING); //真正触发发送meet信息到对端node节点的地方在clusterStartHandshake
 
            // 这不是第一次发送 PING 信息，所以可以还原这个时间      
            // 等 clusterSendPing() 函数来更新它
@@ -4112,7 +4142,7 @@ void clusterUpdateState(void) {
             clusterNode *node = dictGetVal(de);
 
             if (nodeIsMaster(node) && node->numslots) {
-                server.cluster->size++;
+                server.cluster->size++; //包括已下线的节点
                 if (node->flags & (REDIS_NODE_FAIL|REDIS_NODE_PFAIL))
                     unreachable_masters++;
             }
@@ -4278,6 +4308,13 @@ void clusterSetMaster(clusterNode *n) {
 /* -----------------------------------------------------------------------------
  * CLUSTER command
  * -------------------------------------------------------------------------- */
+/*
+[root@centlhw1 ~]# cat /usr/local/cluster/7000/nodes.conf 
+fec9b202debce01bd96a4a8615e1a1792e1b9b61 127.0.0.1:7001 master - 0 1474338184213 0 connected 5462-10922
+5735dc1c29b86bd96477da5bfc90a330b03188f9 127.0.0.1:7002 master - 0 1474338184718 2 connected 10923-16383
+6132067dc2e287c092abba2565b8a3b2f89639ff :0 myself,master - 0 0 1 connected 0-5461
+vars currentEpoch 2 lastVoteEpoch 0
+*/
 
 /* Generate a csv-alike representation of the specified cluster node.
  * See clusterGenNodesDescription() top comment for more information.
@@ -4443,6 +4480,7 @@ void clusterCommand(redisClient *c) {
             return;
         }
 
+        //A通过cluster meet bip bport  B后，B端在clusterAcceptHandler接收连接，A端通过clusterCommand->clusterStartHandshake连接服务器
         // 尝试与给定地址的节点进行连接
         if (clusterStartHandshake(c->argv[2]->ptr,port) == 0 &&
             errno == EINVAL)
@@ -4710,6 +4748,21 @@ void clusterCommand(redisClient *c) {
             }
         }
 
+        /*
+        三个节点时候的打印如下:
+        127.0.0.1:7002> cluster info
+        cluster_state:ok
+        cluster_slots_assigned:16384
+        cluster_slots_ok:16384
+        cluster_slots_pfail:0
+        cluster_slots_fail:0
+        cluster_known_nodes:3
+        cluster_size:3
+        cluster_current_epoch:2
+        cluster_stats_messages_sent:106495
+        cluster_stats_messages_received:106495
+        */
+
         // 打印信息
         sds info = sdscatprintf(sdsempty(),
             "cluster_state:%s\r\n"
@@ -4722,16 +4775,16 @@ void clusterCommand(redisClient *c) {
             "cluster_current_epoch:%llu\r\n"
             "cluster_stats_messages_sent:%lld\r\n"
             "cluster_stats_messages_received:%lld\r\n"
-            , statestr[server.cluster->state],
-            slots_assigned,
-            slots_ok,
-            slots_pfail,
-            slots_fail,
-            dictSize(server.cluster->nodes),
-            server.cluster->size,
-            (unsigned long long) server.cluster->currentEpoch,
-            server.cluster->stats_bus_messages_sent,
-            server.cluster->stats_bus_messages_received
+            , statestr[server.cluster->state], //集群状态
+            slots_assigned,  //集群中已指派的槽位的数量，最大应该为REDIS_CLUSTER_SLOTS 16384(16K)
+            slots_ok, //槽位正常指派数
+            slots_pfail, //槽位pfail数，正常情况下应该为0，但是如果节点被判定为pfail则该节点的槽位数就包含在slots_pfail中
+            slots_fail, //因为节点被判定为下线，这些节点上所包含的槽位数
+            dictSize(server.cluster->nodes), //节点数，包括已下线的,应该包括备节点
+            server.cluster->size, //在线并且正在处理至少一个槽的 master 的数量，包括已下线的
+            (unsigned long long) server.cluster->currentEpoch, //整个截取的版本号
+            server.cluster->stats_bus_messages_sent, //本节点发往其他cluster节点的数据包大小
+            server.cluster->stats_bus_messages_received //其他节点发往本cluster节点的数据包大小
         );
         addReplySds(c,sdscatprintf(sdsempty(),"$%lu\r\n",
             (unsigned long)sdslen(info)));

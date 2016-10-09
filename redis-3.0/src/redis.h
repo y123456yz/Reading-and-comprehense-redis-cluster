@@ -476,7 +476,7 @@ lpushÊ×ÏÈÍ¨¹ıpushGenericCommand->createZiplistObject´´½¨ÁĞ±í¶ÔÏó(Ä¬ÈÏ±àÂë·½Ê½RED
 
 /* AOF states */
 #define REDIS_AOF_OFF 0             /* AOF is off */
-#define REDIS_AOF_ON 1              /* AOF is on */
+#define REDIS_AOF_ON 1              /* AOF is on */  //ĞèÒª´´½¨½øĞĞAOFÖØĞ´
 #define REDIS_AOF_WAIT_REWRITE 2    /* AOF waits rewrite to start appending */
 
 /* Client flags */
@@ -578,6 +578,7 @@ EXECÃüÁî±ØÈ»»áÖ´ĞĞÊ§°Ü¡£ÕâÁ½¸ö±êÖ¾Ö»ÄÜÔÚ¿Í»§¶Ë´ò¿ªÁËREDIS_MULTI±êÖ¾µÄÇé¿öÏÂÊ¹ÓÃ¡
 #define REDIS_REPL_WAIT_BGSAVE_START 6 /* We need to produce a new RDB file. */
 //±íÊ¾ÒÑ¾­´´½¨×Ó½ø³ÌÀ´½øĞĞbgsaveÁË£¬µÈ´ıĞ´³É¹¦¹ı³ÌÖĞ
 #define REDIS_REPL_WAIT_BGSAVE_END 7 /* Waiting RDB file creation to finish. */
+//rdbÎÄ¼şÖØĞ´³É¹¦ºó£¬¿ªÊ¼½øĞĞÍøÂç´«Êä£¬°ÑrdbÎÄ¼ş´«Êäµ½slave½Úµã£¬¼ûupdateSlavesWaitingBgsave
 #define REDIS_REPL_SEND_BULK 8 /* Sending RDB file to slave. */ //¿ªÊ¼·¢ËÍbgsave±£´æµÄÎÄ¼ş¸ø´Ó·şÎñÆ÷¶Ë£¬¼ûupdateSlavesWaitingBgsave
 #define REDIS_REPL_ONLINE 9 /* RDB file transmitted, sending just updates. */ //Ğ´rdbÎÄ¼şÊı¾İµ½¿Í»§¶ËÍê³É£¬¼ûsendBulkToSlave
 
@@ -1592,7 +1593,7 @@ struct redisServer {//struct redisServer server;
 
     /* AOF persistence */
 
-    // AOF ×´Ì¬£¨¿ªÆô/¹Ø±Õ/¿ÉĞ´£© //appendonly  yes | noÅäÖÃ
+    // AOF ×´Ì¬£¨¿ªÆô/¹Ø±Õ/¿ÉĞ´£© //appendonly  yes | noÅäÖÃ  ÅäÖÃÎªnoÔò²»»á²ÎÊıaofÎÄ¼şappendonly.aof
     int aof_state;                  /* REDIS_AOF_(ON|OFF|WAIT_REWRITE) */
 
     // ËùÊ¹ÓÃµÄ fsync ²ßÂÔ£¨Ã¿¸öĞ´Èë/Ã¿Ãë/´Ó²»£©
@@ -1666,9 +1667,10 @@ struct redisServer {//struct redisServer server;
     ·şÎñÆ÷Ã¿´ÎĞŞ¸ÄÒ»¸ö¼üÖ®ºó£¬¶¼»á¶ÔÔà£¨dirty£©¼ü¼ÆÊıÆ÷µÄÖµÔöl£¬Õâ¸ö¼ÆÊıÆ÷»á´¥·¢·şÎñÆ÷µÄ³Ö¾Ã»¯ÒÔ¼°¸´ÖÆ²Ù×÷
      */
     // ×Ô´ÓÉÏ´Î SAVE Ö´ĞĞÒÔÀ´£¬Êı¾İ¿â±»ĞŞ¸ÄµÄ´ÎÊı£¨°üÀ¨Ğ´Èë¡¢É¾³ı¡¢¸üĞÂµÈ²Ù×÷£©¡£ Ö´ĞĞsave bgsaveÃüÁîºó»á´ÓĞÂÖÃÎª0
+    //µ±bgsaveÖ´ĞĞÍê±Ïºó£¬»áÔÚbackgroundSaveDoneHandler¸üĞÂ¸ÃÖµ
     long long dirty;                /* Changes to DB from the last save */
 
-    // BGSAVE Ö´ĞĞÇ°µÄÊı¾İ¿â±»ĞŞ¸Ä´ÎÊı
+    // BGSAVE Ö´ĞĞÇ°µÄÊı¾İ¿â±»ĞŞ¸Ä´ÎÊı  //µ±bgsaveÖ´ĞĞÍê±Ïºó£¬»áÔÚbackgroundSaveDoneHandler¸üĞÂ¸ÃÖµ
     long long dirty_before_bgsave;  /* Used to restore dirty on failed BGSAVE */
 
     /*
@@ -1694,7 +1696,7 @@ saveparamsÊôĞÔÊÇÒ»¸öÊı×é£¬Êı×éÖĞµÄÃ¿¸öÔªËØ¶¼ÊÇÒ»¸ösaveparam½á¹¹£¬Ã¿¸ösaveparam½á
     int rdb_checksum;               /* Use RDB checksum? */
 
     // ×îºóÒ»´ÎÍê³É SAVE µÄÊ±¼ä lastsaveÊôĞÔÊÇÒ»¸öUNIXÊ±¼ä´Á£¬¼ÇÂ¼ÁË·şÎñÆ÷ÉÏÒ»´Î³É¹¦Ö´ĞĞSA VEÃüÁî»òÕßBGSAVEÃüÁîµÄÊ±¼ä¡£
-    time_t lastsave;                /* Unix time of last successful save */
+    time_t lastsave;                /* Unix time of last successful save */ //µ±bgsaveÖ´ĞĞÍê±Ïºó£¬»áÔÚbackgroundSaveDoneHandler¸üĞÂ¸ÃÖµ
 
     // ×îºóÒ»´Î³¢ÊÔÖ´ĞĞ BGSAVE µÄÊ±¼ä
     time_t lastbgsave_try;          /* Unix time of last attempted bgsave */
@@ -1705,7 +1707,7 @@ saveparamsÊôĞÔÊÇÒ»¸öÊı×é£¬Êı×éÖĞµÄÃ¿¸öÔªËØ¶¼ÊÇÒ»¸ösaveparam½á¹¹£¬Ã¿¸ösaveparam½á
     // Êı¾İ¿â×î½üÒ»´Î¿ªÊ¼Ö´ĞĞ BGSAVE µÄÊ±¼ä
     time_t rdb_save_time_start;     /* Current RDB save start time. */
 
-    // ×îºóÒ»´ÎÖ´ĞĞ SAVE µÄ×´Ì¬
+    // ×îºóÒ»´ÎÖ´ĞĞ SAVE µÄ×´Ì¬ //µ±bgsaveÖ´ĞĞÍê±Ïºó£¬»áÔÚbackgroundSaveDoneHandler¸üĞÂ¸ÃÖµ
     int lastbgsave_status;          /* REDIS_OK or REDIS_ERR */
     int stop_writes_on_bgsave_err;  /* Don't allow writes if can't BGSAVE */
 
@@ -1817,10 +1819,19 @@ saveparamsÊôĞÔÊÇÒ»¸öÊı×é£¬Êı×éÖĞµÄÃ¿¸öÔªËØ¶¼ÊÇÒ»¸ösaveparam½á¹¹£¬Ã¿¸ösaveparam½á
     ÕıÒòÎªÖ÷·şÎñÆ÷³ÉÎªÁË´Ó·şÎñÆ÷µÄ¿Í»§¶Ë£¬ËùÒÔÖ÷·şÎñÆ÷²Å¿ÉÒÔÍ¨¹ı·¢ËÍĞ´ÃüÁîÀ´¸Ä±ä´Ó·şÎñÆ÷µÄÊı¾ò¿â×´Ì¬£¬²»½öÍ¬²½²Ù×÷ĞèÒªÓÃµ½ÕâÒ»µã£¬
     ÕâÒ²ÊÇÖ÷·şÎñÆ÷¶Ô´Ó·şÎñÆ÷Ö´ĞĞÃüÁî´«²¥²Ù×÷µÄ»ù´¡
      */
+
+    /*
+    Ö÷±¸Í¬²½»á×¨ÃÅ´´½¨Ò»¸örepl_transfer_sÌ×½Ó×Ö(connectWithMaster)À´½øĞĞÖ÷±¸Í¬²½£¬Í¬²½Íê³ÉºóÔÚreplicationAbortSyncTransferÖĞ¹Ø±Õ¸ÃÌ×½Ó×Ö
+    Ö÷±¸Í¬²½Íê³Éºó£¬Ö÷·şÎñÆ÷ÒªÏò±¾´Ó·şÎñÆ÷·¢ËÍÊµÊ±KV£¬ÔòĞèÒªÒ»¸öÄ£ÄâµÄredisClient,ÒòÎªredis¶¼ÊÇÍ¨¹ıredisClientÖĞµÄfdÀ´½ÓÊÕ¿Í»§¶Ë·¢ËÍµÄKV,
+    Ö÷±¸Í¬²½Íê³ÉºóµÄÊ±ºòKVºÍÖ÷±¸ĞÄÌø±£»î¶¼ÊÇÍ¨¹ı¸Ãmaster(redisClient)µÄfdÀ´ºÍÖ÷·şÎñÆ÷Í¨ĞÅµÄ
+    */
     
     // Ö÷·şÎñÆ÷Ëù¶ÔÓ¦µÄ¿Í»§¶Ë£¬¼ûreadSyncBulkPayload    replicationSetMasterÖĞÊÇ·ñ¸Ãmaster×ÊÔ´  Ò²¾ÍÊÇ±¾·şÎñÆ÷µÄÖ÷·şÎñÆ÷¶ÔÏó£¬¼ûreadSyncBulkPayload
     //Ê¹ÓÃÕâ¸öµÄÄ¸µÄÊÇÈÃÖ÷·şÎñÆ÷·¢ËÍÃüÁî¸ø´Ó·şÎñÆ÷£¬ÒòÎªÃüÁîÒ»°ã¶¼ÊÇ´Ó¿Í»§¶Ë·¢ËÍ¸ø·şÎñÆ÷¶ËµÄ£¬
-    redisClient *master;     /* Client that is master for this slave */
+
+    //µ±±¾½ÚµãÊÇ´Ó½ÚµãµÄÊ±ºò£¬¾Í´´½¨Ò»¸öredisClient½ÚµãÓÃÀ´×¨ÃÅÍ¬²½Ö÷½Úµã·¢Íù±¾½ÚµãµÄÊµÊ±KV¶Ô¸ø±¾´Ó·şÎñÆ÷  
+    //ÀıÈç´Ó·şÎñÆ÷Á¬½Óµ½±¾Ö÷·şÎñÆ÷£¬¿Í»§¶Ë¸üĞÂÁËKV£¬Õâ¸ö¸üĞÂ²Ù×÷¾ÍÍ¨¹ı¸ÃredisClientÀ´ºÍÖ÷·şÎñÆ÷Í¨ĞÅ
+    redisClient *master;     /* Client that is master for this slave */ //
     // ±»»º´æµÄÖ÷·şÎñÆ÷£¬PSYNC Ê±Ê¹ÓÃ  
 //ÀıÈç´Ó·şÎñÆ÷Ö®Ç°ºÍÖ÷·şÎñÆ÷Á¬½ÓÉÏ£¬²¢Í¬²½ÁËÊı¾İ£¬ÖĞÍ¾¶ËÁË£¬ÔòÁ¬½Ó¶ÏÁËºó»áÔÚreplicationCacheMaster°Ñserver.cached_master = server.master;±íÊ¾Ö®Ç°ÓĞÁ¬½Óµ½¹ı·şÎñÆ÷
     redisClient *cached_master; /* Cached master to be reused for PSYNC. */
@@ -1834,7 +1845,15 @@ saveparamsÊôĞÔÊÇÒ»¸öÊı×é£¬Êı×éÖĞµÄÃ¿¸öÔªËØ¶¼ÊÇÒ»¸ösaveparam½á¹¹£¬Ã¿¸ösaveparam½á
     // ×î½üÒ»´ÎÖ´ĞĞ fsync Ê±µÄÆ«ÒÆÁ¿
     // ÓÃÓÚ sync_file_range º¯Êı  Ğ´Èë´ÅÅÌµÄÎÄ¼ş´óĞ¡£¬¼ûreadSyncBulkPayload
     off_t repl_transfer_last_fsync_off; /* Offset when we fsync-ed last time. */
-    // Ö÷·şÎñÆ÷µÄÌ×½Ó×Ö  ¼ûconnectWithMaster
+
+    /*
+    Ö÷±¸Í¬²½»á×¨ÃÅ´´½¨Ò»¸örepl_transfer_sÌ×½Ó×Ö(connectWithMaster)À´½øĞĞÖ÷±¸Í¬²½£¬Í¬²½Íê³ÉºóÔÚreplicationAbortSyncTransferÖĞ¹Ø±Õ¸ÃÌ×½Ó×Ö
+    Ö÷±¸Í¬²½Íê³Éºó£¬Ö÷·şÎñÆ÷ÒªÏò±¾´Ó·şÎñÆ÷·¢ËÍÊµÊ±KV£¬ÔòĞèÒªÒ»¸öÄ£ÄâµÄredisClient,ÒòÎªredis¶¼ÊÇÍ¨¹ıredisClientÖĞµÄfdÀ´½ÓÊÕ¿Í»§¶Ë·¢ËÍµÄKV,
+    Ö÷±¸Í¬²½Íê³ÉºóµÄÊ±ºòKVºÍÖ÷±¸ĞÄÌø±£»î¶¼ÊÇÍ¨¹ı¸Ãmaster(redisClient)µÄfdÀ´ºÍÖ÷·şÎñÆ÷Í¨ĞÅµÄ
+    */
+   
+    // Ö÷·şÎñÆ÷µÄÌ×½Ó×Ö  ¼ûconnectWithMaster  ÓÃÓÚÖ÷±¸Í¬²½  
+    //Ö÷±¸Í¬²½»á×¨ÃÅ´´½¨Ò»¸örepl_transfer_sÌ×½Ó×Ö(connectWithMaster)À´½øĞĞÖ÷±¸Í¬²½£¬Í¬²½Íê³ÉºóÔÚreplicationAbortSyncTransferÖĞ¹Ø±Õ¸ÃÌ×½Ó×Ö
     int repl_transfer_s;     /* Slave -> Master SYNC socket */
     // ±£´æ RDB ÎÄ¼şµÄÁÙÊ±ÎÄ¼şµÄÃèÊö·û
     int repl_transfer_fd;    /* Slave -> Master SYNC temp file descriptor */
@@ -1940,11 +1959,13 @@ saveparamsÊôĞÔÊÇÒ»¸öÊı×é£¬Êı×éÖĞµÄÃ¿¸öÔªËØ¶¼ÊÇÒ»¸ösaveparam½á¹¹£¬Ã¿¸ösaveparam½á
     /* Cluster */
 
     int cluster_enabled;      /* Is cluster enabled? */
+    //Ä¬ÈÏREDIS_CLUSTER_DEFAULT_NODE_TIMEOUT ms // µÈ´ı PONG »Ø¸´µÄÊ±³¤³¬¹ıÁËÏŞÖÆÖµ£¬½«Ä¿±ê½Úµã±ê¼ÇÎª PFAIL £¨ÒÉËÆÏÂÏß£©
+    //Æğ×÷ÓÃµÄµØ·½¼ûclusterCron
     mstime_t cluster_node_timeout; /* Cluster node timeout. */
     char *cluster_configfile; /* Cluster auto-generated config file name. */ //´Ónodes.confÖĞÔØÈë£¬¼ûclusterLoadConfig
     //server.cluster = zmalloc(sizeof(clusterState));
     //¼¯ÈºÏà¹ØÅäÖÃ¼ÓÔØÔÚclusterLoadConfig,  server.cluster¿ÉÄÜ´Ónodes.confÅäÖÃÎÄ¼şÖĞ¼ÓÔØÒ²¿ÉÄÜÈç¹ûÃ»ÓĞnodes.confÅäÖÃÎÄ¼ş»òÕßÅäÖÃÎÄ¼ş¿Õ»òÕßÅäÖÃÓĞÎó£¬Ôò¼ÓÔØÊ§°Üºó
-    //´´½¨¶ÔÓ¦µÄcluster½Úµã
+    //´´½¨¶ÔÓ¦µÄcluster½Úµã clusterInit³õÊ¼»¯´´½¨¿Õ¼ä
     struct clusterState *cluster;  /* State of the cluster */
 
     int cluster_migration_barrier; /* Cluster replicas migration barrier. */

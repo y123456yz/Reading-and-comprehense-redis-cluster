@@ -1638,7 +1638,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
                     (long)pid);
             }
             updateDictResizePolicy();
-        }
+        }   
     } else {
 
         /* If there is not a background saving/rewrite in progress check if

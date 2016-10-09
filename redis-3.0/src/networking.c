@@ -2075,7 +2075,7 @@ char *getClientLimitClassName(int class) {
  * 返回值：到达软性限制或者硬性限制时，返回非 0 值。
  *         否则返回 0 。
  */
-int checkClientOutputBufferLimits(redisClient *c) {
+int checkClientOutputBufferLimits(redisClient *c) { //复制积压缓冲区大小可以通过repl-backlog-size配置，默认为1M
     int soft = 0, hard = 0, class;
 
     // 获取客户端回复缓冲区的大小
@@ -2142,7 +2142,7 @@ int checkClientOutputBufferLimits(redisClient *c) {
  * 注意：
  * 我们不能直接关闭客户端，而要异步关闭的原因是客户端正处于一个不能被安全地关闭的上下文中。
  * 比如说，可能有底层函数正在推入数据到客户端的输出缓冲区里面。      
- */
+ */ //复制积压缓冲区大小可以通过repl-backlog-size配置，默认为1M
 void asyncCloseClientOnOutputBufferLimitReached(redisClient *c) {
     redisAssert(c->reply_bytes < ULONG_MAX-(1024*64));
 

@@ -105,7 +105,7 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 #define REDIS_NODE_MYSELF 16    /* This node is myself */
 
 //在敲cluster meet IP port的时候，在clusterStartHandshake中把节点状态置为REDIS_NODE_HANDSHAKE  REDIS_NODE_MEET ，或者从配置文件node.conf中读到的就是该状态
-// 该节点还未与当前节点完成第一次 PING - PONG 通讯
+// 该节点还未与当前节点完成第一次 PING - PONG 通讯   只有接受到某个node的ping pong meet则会清除该状态
 #define REDIS_NODE_HANDSHAKE 32 /* We have still to exchange the first ping */
 // 该节点没有地址  clusterProcessPacket值置为该状态，或者从配置文件node.conf中读到的就是该状态
 #define REDIS_NODE_NOADDR   64  /* We don't know the address of this node */
@@ -208,6 +208,7 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     // 如果这是一个从节点，那么指向主节点
     struct clusterNode *slaveof; /* pointer to the master node */
 
+    //向该node节点最后一次发送ping消息的时间       本端ping对端，对端pong应答后会把该ping_pong置0，见clusterProcessPacket
     // 最后一次发送 PING 命令的时间   赋值见clusterSendPing
     mstime_t ping_sent;      /* Unix time we sent latest ping */
 
@@ -348,7 +349,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     /* Manual failover state in common. */
     /* 共用的手动故障转移状态 */
 
-    // 手动故障转移执行的时间限制
+    // 手动故障转移执行的时间限制    CLUSTER FAILOVER命令会触发进行手动故障转移，见clusterCommand
     mstime_t mf_end;            /* Manual failover time limit (ms unixtime).
                                    It is zero if there is no MF in progress. */
     /* Manual failover state of master. */

@@ -259,6 +259,8 @@ void loadServerConfigFromString(char *config) {
             }
            
         } else if (!strcasecmp(argv[0],"slaveof") && argc == 3) {
+        //集群模式下，不允许接收slaveof命令，见slaveofCommand     slaveof是客户端发送的命令，redis里面是不会发送该命令的，是由客户端自己发送
+        
         /*
            设现在有两个Redis服务器，地址分别为127.0.0.1: 6379和127.0.0.1:12345，如果我们向服务器127.0.0.1:12345发送以下命令：
         127.0.0.1:12345>  SLAVEOF  127.0.0.1  6379
@@ -1191,6 +1193,7 @@ void configGetCommand(redisClient *c) { //config get命令获取所有的配置信息
         matches++;
     }
     if (stringmatch(pattern,"slaveof",0)) {
+        //集群模式下，不允许接收slaveof命令，见slaveofCommand     slaveof是客户端发送的命令，redis里面是不会发送该命令的，是由客户端自己发送
         char buf[256];
 
         addReplyBulkCString(c,"slaveof");
@@ -1557,14 +1560,14 @@ void rewriteConfigDirOption(struct rewriteConfigState *state) {
 
 /* Rewrite the slaveof option. */
 void rewriteConfigSlaveofOption(struct rewriteConfigState *state) {
-    char *option = "slaveof";
+    char *option = "slaveof"; //集群模式下，不允许接收slaveof命令，见slaveofCommand     slaveof是客户端发送的命令，redis里面是不会发送该命令的，是由客户端自己发送
     sds line;
 
     /* If this is a master, we want all the slaveof config options
      * in the file to be removed. Note that if this is a cluster instance
      * we don't want a slaveof directive inside redis.conf. */
     if (server.cluster_enabled || server.masterhost == NULL) {
-        rewriteConfigMarkAsProcessed(state,"slaveof");
+        rewriteConfigMarkAsProcessed(state,"slaveof");//集群模式下，不允许接收slaveof命令，见slaveofCommand     slaveof是客户端发送的命令，redis里面是不会发送该命令的，是由客户端自己发送
         return;
     }
     line = sdscatprintf(sdsempty(),"%s %s %d", option,

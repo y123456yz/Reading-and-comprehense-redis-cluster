@@ -1385,6 +1385,9 @@ char *sendSynchronousCommand(int fd, ...) {
  *                      主服务器不支持 PSYNC ，调用者应该下降到 SYNC 命令。
  */
 
+//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->replicationSetMaster 
+//集群主备选举后整体同步过程:触发设置server.repl_state = REDIS_REPL_CONNECT，从而触发connectWithMaster。进一步触发slaveTryPartialResynchronization发送psyn进行整体同步
+
 #define PSYNC_CONTINUE 0  //主服务器增量式发送命令报文过来
 #define PSYNC_FULLRESYNC 1 //主服务器采用整体同步方式发送
 #define PSYNC_NOT_SUPPORTED 2 // 主服务器不支持 PSYNC  从服务器需要重新进行SYNC
@@ -1703,6 +1706,9 @@ error:
     return;
 }
 
+//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->replicationSetMaster 
+//集群主备选举后整体同步过程:触发设置server.repl_state = REDIS_REPL_CONNECT，从而触发connectWithMaster。进一步触发slaveTryPartialResynchronization发送psyn进行整体同步
+
 //主备同步会专门创建一个repl_transfer_s套接字(connectWithMaster)来进行主备同步，同步完成后在replicationAbortSyncTransfer中关闭该套接字
 
 // 以非阻塞方式连接主服务器
@@ -1780,6 +1786,11 @@ int cancelReplicationHandshake(void) {
     }
     return 1;
 }
+
+//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->replicationSetMaster 
+//集群主备选举后整体同步过程:触发设置server.repl_state = REDIS_REPL_CONNECT，从而触发connectWithMaster。进一步触发slaveTryPartialResynchronization发送psyn进行整体同步
+
+
 
 /* Set replication to the specified master address and port. */
 // 将服务器设为指定地址的从服务器
@@ -1866,7 +1877,8 @@ PSYNC命令的调用方法有两种：
   步操作。
 
 */
-void slaveofCommand(redisClient *c) {
+//集群模式下，不允许接收slaveof命令，见slaveofCommand     slaveof是客户端发送的命令，redis里面是不会发送该命令的，是由客户端自己发送
+void slaveofCommand(redisClient *c) { //想让一个节点A通过slaveof成为另一个节点B的slave，则必须是B在单机模式下
     /* SLAVEOF is not allowed in cluster mode as replication is automatically
      * configured using the current address of the master node. */
     // 不允许在集群模式中使用
@@ -1909,7 +1921,7 @@ void slaveofCommand(redisClient *c) {
          * we can continue. */
         // 没有前任主服务器，或者客户端指定了新的主服务器
         // 开始执行复制操作
-        replicationSetMaster(c->argv[1]->ptr, port);
+        replicationSetMaster(c->argv[1]->ptr, port); 
         redisLog(REDIS_NOTICE,"SLAVE OF %s:%d enabled (user request)",
             server.masterhost, server.masterport);
     }

@@ -3657,7 +3657,7 @@ void clusterCron(void) {
     /* Check if we have disconnected nodes and re-establish the connection. */
     // 向集群中的所有断线或者未连接节点发送消息
     di = dictGetSafeIterator(server.cluster->nodes);
-    while((de = dictNext(di)) != NULL) {
+    while((de = dictNext(di)) != NULL) { //向和集群中所有未建立连接的节点进行connect并进行meet或者ping，从而进行第一次交互
         clusterNode *node = dictGetVal(de);
 
         // 跳过当前节点以及没有地址的节点
@@ -3712,7 +3712,7 @@ void clusterCron(void) {
 
            // 这不是第一次发送 PING 信息，所以可以还原这个时间      
            // 等 clusterSendPing() 函数来更新它
-            if (old_ping_sent) {
+            if (old_ping_sent) { //也就是在本次发送ping之前的上一次发送ping的时间
                 /* If there was an active ping before the link was
                  * disconnected, we want to restore the ping time, otherwise
                  * replaced by the clusterSendPing() call. */
@@ -3745,7 +3745,9 @@ void clusterCron(void) {
     /* Ping some random node 1 time every 10 iterations, so that we usually ping
      * one random node every second. */
    // clusterCron() 每执行 10 次（至少间隔一秒钟），就向一个随机节点发送 gossip 信息
-    if (!(iteration % 10)) {
+
+   //前面的if已经和集群建立了连接，这里的if就是每隔1s进行一次ping操作
+    if (!(iteration % 10)) { //也就是每秒钟该if满足一次
         int j;
 
         /* Check a few random nodes and ping the one with the oldest
@@ -3765,12 +3767,14 @@ void clusterCron(void) {
                 continue;
 
              // 选出 5 个随机节点中最近一次接收 PONG 回复距离现在最旧的节点
-            if (min_pong_node == NULL || min_pong > this->pong_received) {
+            if (min_pong_node == NULL || min_pong > this->pong_received) { 
+            //从整个集群中随机取出5个clusterNode，并从这5个随机节点中选择最久没有和本节点回复pong消息的节点
                 min_pong_node = this;
                 min_pong = this->pong_received;
             }
         }
 
+        //从整个集群中随机取出5个clusterNode，并从这5个随机节点中选择最久没有和本节点回复pong消息的节点，向这个节点发送PING
          // 向最久没有收到 PONG 回复的节点发送 PING 命令
         if (min_pong_node) {
             redisLog(REDIS_DEBUG,"Pinging node %.40s", min_pong_node->name);
@@ -3801,9 +3805,13 @@ void clusterCron(void) {
 
         /* Orphaned master check, useful only if the current instance
          * is a slave that may migrate to another master. */
+         //本节点是从节点，对端node是本节点的主，计算node节点下面有多少个从节点
         if (nodeIsSlave(myself) && nodeIsMaster(node) && !nodeFailed(node)) {
-            int okslaves = clusterCountNonFailingSlaves(node);
+            int okslaves = clusterCountNonFailingSlaves(node); //计算node节点有多少个从节点
 
+            //max_slaves为所有主节点中从节点数最大为多少
+
+            //计算max slaves是为后面的migrate做准备的，和migrate有关
             if (okslaves == 0 && node->numslots > 0) orphaned_masters++;
             if (okslaves > max_slaves) max_slaves = okslaves;
             if (nodeIsSlave(myself) && myself->slaveof == node)
@@ -3821,7 +3829,7 @@ void clusterCron(void) {
             node->ping_sent && /* we already sent a ping */
             node->pong_received < node->ping_sent && /* still waiting pong */
             /* and we are waiting for the pong more than timeout/2 */
-            now - node->ping_sent > server.cluster_node_timeout/2)
+            now - node->ping_sent > server.cluster_node_timeout/2) //我发送了ping，但是对端node过了server.cluster_node_timeout/2还没有应答
         {
             /* Disconnect the link, it will be reconnected automatically. */
             // 释放连接，下次 clusterCron() 会自动重连
@@ -3838,7 +3846,7 @@ void clusterCron(void) {
         // （因为一部分节点可能一直没有被随机中）
         if (node->link &&
             node->ping_sent == 0 &&
-            (now - node->pong_received) > server.cluster_node_timeout/2)
+            (now - node->pong_received) > server.cluster_node_timeout/2) //我已经server.cluster_node_timeout/2这么多时间没向对方发送ping了
         {
             clusterSendPing(node->link, CLUSTERMSG_TYPE_PING);
             continue;
@@ -3861,6 +3869,8 @@ void clusterCron(void) {
         // 以下代码只在节点发送了 PING 命令的情况下执行
         if (node->ping_sent == 0) continue;
 
+        //说明发送了ping,但是对方还没有pong
+        
         /* Compute the delay of the PONG. Note that if we already received
          * the PONG, then node->ping_sent is zero, so can't reach this
          * code at all. */
@@ -4282,7 +4292,11 @@ int verifyClusterConfigWithData(void) {
 
 /* Set the specified node 'n' as master for this node.
  * If this node is currently a master, it is turned into a slave. */
-    // 将节点 n 设置为当前节点的主节点// 如果当前节点为主节点，那么将它转换为从节点
+
+//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->replicationSetMaster 
+//集群主备选举后整体同步过程:触发设置server.repl_state = REDIS_REPL_CONNECT，从而触发connectWithMaster。进一步触发slaveTryPartialResynchronization发送psyn进行整体同步
+
+// 将节点 n 设置为当前节点的主节点// 如果当前节点为主节点，那么将它转换为从节点
 void clusterSetMaster(clusterNode *n) {
     redisAssert(n != myself);
     redisAssert(myself->numslots == 0);
@@ -4925,7 +4939,7 @@ void clusterCommand(redisClient *c) {
 
         /* Set the master. */
          // 将节点 n 设为本节点的主节点
-        clusterSetMaster(n);
+        clusterSetMaster(n); 
         clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
         addReply(c,shared.ok);
     } else if (!strcasecmp(c->argv[1]->ptr,"slaves") && c->argc == 3) {

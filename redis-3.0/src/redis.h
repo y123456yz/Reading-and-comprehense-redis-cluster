@@ -564,7 +564,10 @@ EXECÃüÁî±ØÈ»»áÖ´ĞĞÊ§°Ü¡£ÕâÁ½¸ö±êÖ¾Ö»ÄÜÔÚ¿Í»§¶Ë´ò¿ªÁËREDIS_MULTI±êÖ¾µÄÇé¿öÏÂÊ¹ÓÃ¡
 #define REDIS_CLIENT_LIMIT_NUM_CLASSES 3
 
 /* Slave replication state - from the point of view of the slave. */
+
+//REDIS_REPL_CONNECT->REDIS_REPL_CONNECTING->REDIS_REPL_CONNECTED
 #define REDIS_REPL_NONE 0 /* No active replication */
+//»á´¥·¢Á¬½ÓÖ÷·şÎñÆ÷connectWithMaster
 #define REDIS_REPL_CONNECT 1 /* Must connect to master */ //¼ûreplicationSetMaster  ±íÊ¾Î´Á¬½Ó×´Ì¬
 #define REDIS_REPL_CONNECTING 2 /* Connecting to master */ //¼ûconnectWithMaster
 #define REDIS_REPL_RECEIVE_PONG 3 /* Wait for PING reply */ //´Ó·şÎñÆ÷Á¬½ÓÖ÷·şÎñÆ÷³É¹¦ºó·¢ËÍping×Ö·û´®¸øÖ÷·şÎñÆ÷£¬È»ºó½øÈë¸Ã×´Ì¬£¬±íÊ¾µÈ´ıÖ÷·şÎñÆ÷Ó¦´ğPONG

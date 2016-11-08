@@ -67,7 +67,7 @@ CLUSTER KEYSLOT <key> ¼ÆËã¼ü key Ó¦¸Ã±»·ÅÖÃÔÚÄÄ¸ö²ÛÉÏ¡£
 CLUSTER COUNTKEYSINSLOT <slot> ·µ»Ø²Û slot Ä¿Ç°°üº¬µÄ¼üÖµ¶ÔÊıÁ¿¡£  
 CLUSTER GETKEYSINSLOT <slot> <count> ·µ»Ø count ¸ö slot ²ÛÖĞµÄ¼ü¡£
 
-¼¯Èº×ÊÁÏ:http://carlosfu.iteye.com/blog/2254573
+¼¯Èº×ÊÁÏ:http://carlosfu.iteye.com/blog/2254573   http://www.soso.io/article/68131.html
 */
 
 /* A global reference to myself is handy to make code more clear.
@@ -633,8 +633,10 @@ clusterLink *createClusterLink(clusterNode *node) {
 /* Free a cluster link, but does not free the associated node of course.
  * This function will just make sure that the original node associated
  * with this link will have the 'link' field set to NULL. */
+ //clusterCronÈç¹û½ÚµãµÄlinkÎªNULL£¬ÔòĞèÒª½øĞĞÖØÁ¬£¬ÔÚfreeClusterLinkÖĞÈç¹ûºÍ¼¯ÈºÖĞÄ³¸ö½ÚµãÒì³£¹Òµô£¬
+ //Ôò±¾½ÚµãÍ¨¹ı¶ÁĞ´ÊÂ¼ş¶ø¸ĞÖªµ½£¬È»ºóÔÚfreeClusterLinkÖÃÎªNULL
     // ½«¸ø¶¨µÄÁ¬½ÓÇå¿Õ// ²¢½«°üº¬Õâ¸öÁ¬½ÓµÄ½ÚµãµÄ link ÊôĞÔÉèÎª NULL
-void freeClusterLink(clusterLink *link) {
+void freeClusterLink(clusterLink *link) { //»áÔÚÏÂ´Î½øÈëclusterCronºó£¬ÒòÎªÂú×ãlink=NULL¶ø´ÓĞÂºÍ¸Ãlink¶ÔÓ¦µÄNOde½¨Á¢Á¬½Ó
 
     // É¾³ıÊÂ¼ş´¦ÀíÆ÷
     if (link->fd != -1) {
@@ -666,7 +668,7 @@ void freeClusterLink(clusterLink *link) {
 
 
 //AÍ¨¹ıcluster meet bip bport  Bºó£¬B¶ËÔÚclusterAcceptHandler->clusterReadHandler½ÓÊÕÁ¬½Ó£¬A¶ËÍ¨¹ı
- //clusterCommand->clusterStartHandshake´¥·¢clusterCron->anetTcpNonBlockBindConnectÁ¬½Ó·şÎñÆ÷
+//clusterCommand->clusterStartHandshake´¥·¢clusterCron->anetTcpNonBlockBindConnectÁ¬½Ó·şÎñÆ÷
 void clusterAcceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     int cport, cfd;
     int max = MAX_CLUSTER_ACCEPTS_PER_CALL;
@@ -753,7 +755,8 @@ unsigned int keyHashSlot(char *key, int keylen) {
  * The node is created and returned to the user, but it is not automatically * added to the nodes hash table. 
  * 
  * º¯Êı»á·µ»Ø±»´´½¨µÄ½Úµã£¬µ«²»»á×Ô¶¯½«ËüÌí¼Óµ½µ±Ç°½ÚµãµÄ½Úµã¹şÏ£±íÖĞ * £¨nodes hash table£©¡£ */
-
+//A·¢ËÍcluster meet µ½BµÄÊ±ºò£¬A½ÚµãÉÏÃæ´´½¨B½ÚµãµÄclusterNodeÔÚclusterStartHandshake£¬È»ºóÏëB½Úµã·¢Æğ
+//Á¬½Ó²¢·¢ËÍMEETÏûÏ¢£¬B½Úµã½ÓÊÕµ½MEETÏûÏ¢ºó£¬ÔÚclusterProcessPacketÖĞ´´½¨A½ÚµãµÄclusterNode
 clusterNode *createClusterNode(char *nodename, int flags) {
     clusterNode *node = zmalloc(sizeof(*node));
 
@@ -1409,7 +1412,13 @@ int clusterHandshakeInProgress(char *ip, int port) {
  *          ÒÑ¾­ÓĞÎÕÊÖÔÚ½øĞĞÖĞÁË¡£ 
  * EINVAL - IP or port are not valid.  
  *          ip »òÕß port ²ÎÊı²»ºÏ·¨¡£
- */ //AÍ¨¹ıcluster meet bip bport  Bºó£¬B¶ËÔÚclusterAcceptHandler->clusterReadHandler½ÓÊÕÁ¬½Ó£¬A¶ËÍ¨¹ı
+ */ 
+//A·¢ËÍcluster meet µ½BµÄÊ±ºò£¬A½ÚµãÉÏÃæ´´½¨B½ÚµãµÄclusterNodeÔÚclusterStartHandshake£¬È»ºóÏëB½Úµã·¢Æğ
+//Á¬½Ó²¢·¢ËÍMEETÏûÏ¢£¬B½Úµã½ÓÊÕµ½MEETÏûÏ¢ºó£¬ÔÚclusterProcessPacketÖĞ´´½¨A½ÚµãµÄclusterNode
+
+
+
+ //AÍ¨¹ıcluster meet bip bport  Bºó£¬B¶ËÔÚclusterAcceptHandler->clusterReadHandler½ÓÊÕÁ¬½Ó£¬A¶ËÍ¨¹ı
  //clusterCommand->clusterStartHandshake´¥·¢clusterCron->anetTcpNonBlockBindConnectÁ¬½Ó·şÎñÆ÷
 int clusterStartHandshake(char *ip, int port) {//×¢Òâ¸Ãº¯ÊıÃ»ÓĞ´¥·¢connect£¬´¥·¢connectÔÚclusterCron->anetTcpNonBlockBindConnect
     clusterNode *n;
@@ -1485,6 +1494,22 @@ int clusterStartHandshake(char *ip, int port) {//×¢Òâ¸Ãº¯ÊıÃ»ÓĞ´¥·¢connect£¬´¥·¢
  * ×¢Òâ£¬Õâ¸öº¯Êı¼ÙÉèµ÷ÓÃÕßÒÑ¾­¸ù¾İÏûÏ¢µÄ³¤¶È£¬¶ÔÏûÏ¢½øĞĞ¹ıºÏ·¨ĞÔ¼ì²é¡£
 
  */
+
+/*
+½ÓÊÕµ½ÆäËû½Úµã·¢ËÍ¹ıÀ´µÄpingĞÅÏ¢£¬Ğ¯´øÁË172.16.3.40:7002ºÍ172.16.3.66:7000½Úµã
+21478:M 07 Nov 18:03:10.123 . --- Processing packet of type 0, 2416 bytes
+21478:M 07 Nov 18:03:10.123 . Ping packet received: (nil)
+21478:M 07 Nov 18:03:10.123 . ping packet received: (nil)
+21478:M 07 Nov 18:03:10.123 . GOSSIP 9a214ea3bc2e6069c409c01cb06244cd1310104c 172.16.3.40:7002 master
+21478:M 07 Nov 18:03:10.123 . GOSSIP eb8939a845c486d52ad0017b199ae1ae806a8442 172.16.3.66:7000 master
+
+±¾½Úµã·¢ËÍpingĞÅÏ¢µ½½Úµã9a214ea3bc2e6069c409c01cb06244cd1310104c£¬È»ºóÊÕµ½¶Ô·½µÄpong
+21478:M 07 Nov 18:03:10.125 . Pinging node 9a214ea3bc2e6069c409c01cb06244cd1310104c
+21478:M 07 Nov 18:03:10.126 . --- Processing packet of type 1, 2416 bytes
+21478:M 07 Nov 18:03:10.126 . pong packet received: 0x7fcb6217dc00
+21478:M 07 Nov 18:03:10.126 . GOSSIP eb8939a845c486d52ad0017b199ae1ae806a8442 172.16.3.66:7000 master
+21478:M 07 Nov 18:03:10.126 . GOSSIP 79f9474661ca51f7cb8920715dc6fb3db12ff032 172.16.3.41:7004 slave
+*/
 void clusterProcessGossipSection(clusterMsg *hdr, clusterLink *link) {
 
      // ¼ÇÂ¼ÕâÌõÏûÏ¢ÖĞ°üº¬ÁË¶àÉÙ¸ö½ÚµãµÄĞÅÏ¢
@@ -1633,7 +1658,7 @@ void nodeIp2String(char *buf, clusterLink *link) {
  * The function returns 0 if the node address is still the same,
  * otherwise 1 is returned. 
  *
- * å‡½æ•°è¿”å› 0 è¡¨ç¤ºåœ°å€ä¸å˜ï¼Œåœ°å€å·²è¢«æ›´æ–°åˆ™è¿”å› 1 ã€‚
+ * º¯Êı·µ»Ø 0 ±íÊ¾µØÖ·²»±ä£¬µØÖ·ÒÑ±»¸üĞÂÔò·µ»Ø 1 ¡£
  */
 int nodeUpdateAddressIfNeeded(clusterNode *node, clusterLink *link, int port) {
     char ip[REDIS_IP_STR_LEN];
@@ -1917,9 +1942,10 @@ void clusterHandleConfigEpochCollision(clusterNode *sender) {
  * Èç¹ûº¯Êı·µ»Ø 1 £¬ÄÇÃ´ËµÃ÷´¦ÀíĞÅÏ¢Ê±Ã»ÓĞÓöµ½ÎÊÌâ£¬Á¬½ÓÒÀÈ»¿ÉÓÃ¡£
  * Èç¹ûº¯Êı·µ»Ø 0 £¬ÄÇÃ´ËµÃ÷ĞÅÏ¢´¦ÀíÊ±Óöµ½ÁË²»Ò»ÖÂÎÊÌâ
  * £¨±ÈÈç½ÓÊÕµ½µÄ PONG ÊÇ·¢ËÍ×Ô²»ÕıÈ·µÄ·¢ËÍÕß ID µÄ£©£¬Á¬½ÓÒÑ¾­±»ÊÍ·Å¡£
- */ //clusterReadHandler->clusterProcessPacket
-int clusterProcessPacket(clusterLink *link) {
+ */ 
 
+ //clusterReadHandler->clusterProcessPacket
+int clusterProcessPacket(clusterLink *link) { //cluster½ÚµãÖ®¼ä¼ì²âÖ÷ÒªµÄÁ½¸ö½»»¥º¯ÊıÎªclusterProcessPacketºÍclusterCron
    // Ö¸ÏòÏûÏ¢Í·
     clusterMsg *hdr = (clusterMsg*) link->rcvbuf;
 
@@ -2037,8 +2063,11 @@ int clusterProcessPacket(clusterLink *link) {
          * µÈµ±Ç°½ÚµãÏò¶Ô·½·¢ËÍ PING ÃüÁîÖ®ºó£¬      
          * ÕâĞ©ĞÅÏ¢¿ÉÒÔ´Ó¶Ô·½»Ø¸´µÄ PONG ĞÅÏ¢ÖĞÈ¡µÃ¡£
          */
-        if (!sender && type == CLUSTERMSG_TYPE_MEET) {
+        if (!sender && type == CLUSTERMSG_TYPE_MEET) { //¶Ô¶Ë·¢ËÍmeet¹ıÀ´£¬±¾¶ËÃ»ÓĞ¸Änode½ÚµãĞÅÏ¢£¬Ôò´´½¨
             clusterNode *node;
+
+            //A·¢ËÍcluster meet µ½BµÄÊ±ºò£¬A½ÚµãÉÏÃæ´´½¨B½ÚµãµÄclusterNodeÔÚclusterStartHandshake£¬È»ºóÏòB½Úµã·¢Æğ
+            //Á¬½Ó²¢·¢ËÍMEETÏûÏ¢£¬B½Úµã½ÓÊÕµ½MEETÏûÏ¢ºó£¬ÔÚclusterProcessPacketÖĞ´´½¨A½ÚµãµÄclusterNode
 
              // ´´½¨ HANDSHAKE ×´Ì¬µÄĞÂ½Úµã
             node = createClusterNode(NULL,REDIS_NODE_HANDSHAKE);
@@ -2047,6 +2076,19 @@ int clusterProcessPacket(clusterLink *link) {
             nodeIp2String(node->ip,link);
             node->port = ntohs(hdr->port);
 
+            //A·¢ËÍmeetĞÅÏ¢µ½B£¬»á×ßÕâÀï£¬×¢ÒâÕâÀïµÄnode.linkÃ»ÓĞ¸³Öµ»¹ÊÇÎªNULL,ÎªNULLÊÇÎªÁË×öÊ²Ã´ÄØ£¬¾ÍÊÇÎªÁËÔÚclusterCronÖĞÒ²ÏòA½¨Á¢Á¬½Ó²¢·¢ËÍPING£¬
+
+    /*  clusterNodeºÍclusterLink ¹ØÏµÍ¼
+    AÁ¬½ÓB£¬·¢ËÍMEET£¬A»á´´½¨BµÄclusterNode-B£¬²¢ÇÒ´´½¨BµÄlink1£¬¸ÃclusterNode-BºÍlink1ÔÚclusterCronÖĞ½¨Á¢¹ØÏµ
+    BÊÕµ½meetºó£¬ÔÚclusterAcceptHandlerÖĞ´´½¨link2£¬ÔÚclusterProcessPacketÖĞ´´½¨BµÄclusterNode-A,µ«ÊÇÕâÊ±ºòµÄlink2ºÍclusterNode-AÃ»ÓĞ½¨Á¢¹ØÏµ
+    ½ô½Ó×ÅBÔÚclusterCronÖĞ·¢ÏÖclusterNode-AµÄlinkÎªNULL£¬ÓÚÊÇB¿ªÊ¼ÏòA·¢ÆğÁ¬½Ó£¬´Ó¶ø´´½¨link3²¢·¢ËÍPING,²¢ÈÃclusterNode2ºÍlink3¹ØÁª£¬AÊÕµ½
+    B·¢ËÍµÄÁ¬½ÓÇëÇóºó£¬´´½¨ĞÂµÄlink4,×îÖÕ¶ÔÓ¦¹ØÏµÊÇ:
+    
+    A½Úµã                   B½Úµã
+    clusterNode-B(link1) --->    link2(¸Ãlink²»ÊôÓÚÈÎºÎclusterNode)     (A·¢Æğmeetµ½B)                                               ²½Öè1
+    link4      <----         clusterNode-A(link3) (¸Ãlink²»ÊôÓÚÈÎºÎclusterNode)  (BÊÕµ½meetºó£¬ÔÙÏÂÒ»¸öclustercronÖĞÏòA·¢ÆğÁ¬½Ó)     ²½Öè2
+    */ 
+            
              // ½«ĞÂ½ÚµãÌí¼Óµ½¼¯Èº
             clusterAddNode(node);
 
@@ -2557,6 +2599,8 @@ void clusterWriteHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     // ¶ÁÊÂ¼ş´¦ÀíÆ÷
     // Ê×ÏÈ¶ÁÈëÄÚÈİµÄÍ·£¬ÒÔÅĞ¶Ï¶ÁÈëÄÚÈİµÄ³¤¶È
     // Èç¹ûÄÚÈİÊÇÒ»¸ö whole packet £¬ÄÇÃ´µ÷ÓÃº¯ÊıÀ´´¦ÀíÕâ¸ö packet ¡£
+
+//Èç¹ûÉ±µôÖ÷½Úµãredis£¬½ÚµãÍ¨¹ıreadQueryFromClient(±¸½ÓÊÕÖ÷µÄÊµÊ±KVÓÃÕâ¸ö)»òÕßclusterReadHandler(¼¯ÈºÖ®¼äÍ¨ĞÅÓÃÕâ¸ö)ÖĞµÄread¶ÁÒì³£ÊÂ¼ş¼ì²âµ½½ÚµãÒì³£
 void clusterReadHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     char buf[sizeof(clusterMsg)];
     ssize_t nread;
@@ -2606,6 +2650,7 @@ void clusterReadHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         // ´¦Àí¶ÁÈë´íÎó
         if (nread <= 0) {
+            //¼¯ÈºÄ³¸ö½Úµã¹ÒÁË£¬½ø³ÌÍË³ö
             /* I/O error... */
             redisLog(REDIS_DEBUG,"I/O error reading from node link: %s",
                 (nread == 0) ? "connection closed" : strerror(errno));
@@ -2780,8 +2825,8 @@ void clusterBuildMessageHdr(clusterMsg *hdr, int type) { //typeÈ¡ÖµCLUSTERMSG_TY
 /* Send a PING or PONG packet to the specified node, making sure to add enough
  * gossip informations. */
 
-// ÏòÖ¸¶¨½Úµã·¢ËÍÒ»Ìõ MEET ¡¢ PING »òÕß PONG ÏûÏ¢
-void clusterSendPing(clusterLink *link, int type) {
+// ÏòÖ¸¶¨½Úµã·¢ËÍÒ»Ìõ MEET ¡¢ PING »òÕß PONG ÏûÏ¢µ½link¶ÔÓ¦µÄ½Úµã£¬Í¬Ê±»á´øÉÏ±¾½ÚµãËùÔÚ¼¯ÈºÖĞµÄÈÎÒâÆäËûÁ½¸ö½ÚµãĞÅÏ¢¸ø¸Ãlink¶ÔÓ¦µÄ½Úµã
+void clusterSendPing(clusterLink *link, int type) { //Ëæ»úËãÈ¥±¾½ÚµãËùÔÚ¼¯ÈºÖĞµÄÈÎÒâÁ½¸öÆäËûnode½Úµã(²»°üÀ¨link±¾½ÚµãºÍlink¶ÔÓ¦µÄ½Úµã)ĞÅÏ¢·¢ËÍ¸ølink¶ÔÓ¦µÄ½Úµã
     unsigned char buf[sizeof(clusterMsg)];
     clusterMsg *hdr = (clusterMsg*) buf;
     int gossipcount = 0, totlen;
@@ -3246,7 +3291,7 @@ int clusterGetSlaveRank(void) {
  *    Ö´ĞĞ¹ÊÕÏ×ªÒÆ£¬²¢Í¨ÖªÆäËû½Úµã
 
  */
-void clusterHandleSlaveFailover(void) {
+void clusterHandleSlaveFailover(void) { //¶ÔCLUSTER_TODO_HANDLE_FAILOVER×´Ì¬µÄ´¦Àí
     mstime_t data_age;
     mstime_t auth_age = mstime() - server.cluster->failover_auth_time;
     int needed_quorum = (server.cluster->size / 2) + 1;
@@ -3626,7 +3671,7 @@ void clusterHandleManualFailover(void) {
 
 /* This is executed 10 times every second */
 // ¼¯Èº³£¹æ²Ù×÷º¯Êı£¬Ä¬ÈÏÃ¿ÃëÖ´ĞĞ 10 ´Î£¨Ã¿¼ä¸ô 100 ºÁÃëÖ´ĞĞÒ»´Î£©
-void clusterCron(void) {
+void clusterCron(void) { //cluster½ÚµãÖ®¼ä¼ì²âÖ÷ÒªµÄÁ½¸ö½»»¥º¯ÊıÎªclusterProcessPacketºÍclusterCron
     dictIterator *di;
     dictEntry *de;
     int update_state = 0;
@@ -3657,7 +3702,7 @@ void clusterCron(void) {
     /* Check if we have disconnected nodes and re-establish the connection. */
     // Ïò¼¯ÈºÖĞµÄËùÓĞ¶ÏÏß»òÕßÎ´Á¬½Ó½Úµã·¢ËÍÏûÏ¢
     di = dictGetSafeIterator(server.cluster->nodes);
-    while((de = dictNext(di)) != NULL) { //ÏòºÍ¼¯ÈºÖĞËùÓĞÎ´½¨Á¢Á¬½ÓµÄ½Úµã½øĞĞconnect²¢½øĞĞmeet»òÕßping£¬´Ó¶ø½øĞĞµÚÒ»´Î½»»¥
+    while((de = dictNext(di)) != NULL) { //ÏòºÍ¼¯ÈºÖĞËùÓĞÎ´½¨Á¢Á¬½ÓµÄ½Úµã½øĞĞconnect²¢½øĞĞmeet»òÕßping£¬´Ó¶ø½¨Á¢Á¬½Ó£¬²¢½øĞĞµÚÒ»´Î½»»¥
         clusterNode *node = dictGetVal(de);
 
         // Ìø¹ıµ±Ç°½ÚµãÒÔ¼°Ã»ÓĞµØÖ·µÄ½Úµã
@@ -3671,8 +3716,25 @@ void clusterCron(void) {
             continue;
         }
 
-        // ÎªÎ´´´½¨Á¬½ÓµÄ½Úµã´´½¨Á¬½Ó
-        if (node->link == NULL) { //¶Ô¶Ë½ÚµãclusterNode.linkÔÚÕâÀï´´½¨ºÍ¸³Öµ
+    /*  clusterNodeºÍclusterLink ¹ØÏµÍ¼
+    AÁ¬½ÓB£¬·¢ËÍMEET£¬A»á´´½¨BµÄclusterNode-B£¬²¢ÇÒ´´½¨BµÄlink1£¬¸ÃclusterNode-BºÍlink1ÔÚclusterCronÖĞ½¨Á¢¹ØÏµ
+    BÊÕµ½meetºó£¬ÔÚclusterAcceptHandlerÖĞ´´½¨link2£¬ÔÚclusterProcessPacketÖĞ´´½¨BµÄclusterNode-A,µ«ÊÇÕâÊ±ºòµÄlink2ºÍclusterNode-AÃ»ÓĞ½¨Á¢¹ØÏµ
+    ½ô½Ó×ÅBÔÚclusterCronÖĞ·¢ÏÖclusterNode-AµÄlinkÎªNULL£¬ÓÚÊÇB¿ªÊ¼ÏòA·¢ÆğÁ¬½Ó£¬´Ó¶ø´´½¨link3²¢·¢ËÍPING,²¢ÈÃclusterNode2ºÍlink3¹ØÁª£¬AÊÕµ½
+    B·¢ËÍµÄÁ¬½ÓÇëÇóºó£¬´´½¨ĞÂµÄlink4,×îÖÕ¶ÔÓ¦¹ØÏµÊÇ:
+    
+    A½Úµã                   B½Úµã
+    clusterNode-B(link1) --->    link2(¸Ãlink²»ÊôÓÚÈÎºÎclusterNode)     (A·¢Æğmeetµ½B)                                               ²½Öè1
+    link4      <----         clusterNode-A(link3) (¸Ãlink²»ÊôÓÚÈÎºÎclusterNode)  (BÊÕµ½meetºó£¬ÔÙÏÂÒ»¸öclustercronÖĞÏòA·¢ÆğÁ¬½Ó)     ²½Öè2
+    */  
+
+        //A meet BµÄÊ±ºò£¬linkÎªNULL£¬B½ÓÊÕµ½MEETĞÅÏ¢ºó£¬»á´´½¨clusterNode£¬ÕâÊ±ºòµÄclusterNode.link=NULL£¬ÕâÁ½ÖÖÇé¿ö¶¼×ßÒ»ÏÂif£¬¶¼Âú×ãÌõ¼ş
+        //»òÕß¼¯ÈºÖĞÄ³¸ö½Úµã¹ÒµôÁË£¬Ôò»áÔÚÕâÀï·´¸´µÄÖØÁ¬Õâ¸ö¹ÒµôµÄ½Úµã£¬µÈ´ıËûÔÙ´ÎÁ¬½Óµ½¼¯Èº
+        // ÎªÎ´´´½¨Á¬½ÓµÄ½Úµã´´½¨Á¬½Ó£¬ÕâÑùÈÎºÎÒ»¸ö½Úµã¶¼»áºÍ¼¯ÈºÖĞÃ¿Ò»¸öclusterNode½¨Á¢Á¬½Ó
+        if (node->link == NULL) { //¶Ô¶Ë½ÚµãclusterNode.linkÔÚÕâÀï´´½¨ºÍ¸³Öµ   
+            /* 
+            ½øÈëÕâÀïÃæÓĞÁ½ÖÖÇé¿ö£¬Ò»ÖÖÊÇA½Úµãmeet cluster B½Úµã£¬A½Úµã»á´´½¨B½ÚµãµÄclusterNodeºÍlinkĞÅÏ¢£¬ÆäÖĞclusterNode.link=link
+            */
+            
             int fd;
             mstime_t old_ping_sent;
             clusterLink *link;
@@ -3707,8 +3769,9 @@ void clusterCron(void) {
              // ÏòĞÂÁ¬½ÓµÄ½Úµã·¢ËÍ PING ÃüÁî£¬·ÀÖ¹½Úµã±»Ê¶½øÈëÏÂÏß         
              // Èç¹û½Úµã±»±ê¼ÇÎª MEET £¬ÄÇÃ´·¢ËÍ MEET ÃüÁî£¬·ñÔò·¢ËÍ PING ÃüÁî
             old_ping_sent = node->ping_sent;
+            //ÕæÕı´¥·¢·¢ËÍmeetĞÅÏ¢µ½¶Ô¶Ënode½ÚµãµÄµØ·½ÔÚclusterStartHandshake
             clusterSendPing(link, node->flags & REDIS_NODE_MEET ?
-                    CLUSTERMSG_TYPE_MEET : CLUSTERMSG_TYPE_PING); //ÕæÕı´¥·¢·¢ËÍmeetĞÅÏ¢µ½¶Ô¶Ënode½ÚµãµÄµØ·½ÔÚclusterStartHandshake
+                    CLUSTERMSG_TYPE_MEET : CLUSTERMSG_TYPE_PING); 
 
            // Õâ²»ÊÇµÚÒ»´Î·¢ËÍ PING ĞÅÏ¢£¬ËùÒÔ¿ÉÒÔ»¹Ô­Õâ¸öÊ±¼ä      
            // µÈ clusterSendPing() º¯ÊıÀ´¸üĞÂËü
@@ -3747,13 +3810,19 @@ void clusterCron(void) {
    // clusterCron() Ã¿Ö´ĞĞ 10 ´Î£¨ÖÁÉÙ¼ä¸ôÒ»ÃëÖÓ£©£¬¾ÍÏòÒ»¸öËæ»ú½Úµã·¢ËÍ gossip ĞÅÏ¢
 
    //Ç°ÃæµÄifÒÑ¾­ºÍ¼¯Èº½¨Á¢ÁËÁ¬½Ó£¬ÕâÀïµÄif¾ÍÊÇÃ¿¸ô1s½øĞĞÒ»´Îping²Ù×÷
+   /*
+    Ä¬ÈÏÃ¿¸ô1s£¬´ÓÒÑÖª½ÚµãÁĞ±íÖĞËæ»úÑ¡³ö5¸ö½Úµã£¬È»ºó¶ÔÕâ5¸ö½ÓµØÖĞ×î³¤Ê±¼äÃ»ÓĞ·¢ËÍ¹ıPINGÏûÏ¢µÄ½Úµã·¢ËÍPING
+    ÏûÏ¢£¬ÒÔ´ËÀ´¼ì²â±»Ñ¡ÖĞµÄ½ÚµãÊÇ·ñÔÚÏß¡£
+   */
     if (!(iteration % 10)) { //Ò²¾ÍÊÇÃ¿ÃëÖÓ¸ÃifÂú×ãÒ»´Î
         int j;
 
         /* Check a few random nodes and ping the one with the oldest
          * pong_received time. */
         // Ëæ»ú 5 ¸ö½Úµã£¬Ñ¡³öÆäÖĞÒ»¸ö
-        for (j = 0; j < 5; j++) {
+        for (j = 0; j < 5; j++) { 
+        //ÕâÀïÊÇËæ»úÈ¡£¬ÒªÊÇÄ³¸ö½ÚµãÒ»Ö±Ã»È¡µ½£¬²»ÊÇºÍ¸Ãnode½ÚµãÊ§È¥ÁªÏµÂğ??? ËùÒÔºóÃæ»áÍ¨¹ıserver.cluster_node_timeout/2Ê±¼ä¶ÎÃ»ÓĞ·¢ËÍ¹ıpingÁË£¬
+        //ĞèÒªÔÙ´Î·¢ËÍpingÀ´ÅĞ¶Ï½Úµã×´Ì¬¡£ËùÒÔÕâÀïÒ²¿ÉÒÔ¿´³öcluster_node_timeoutÅäÖÃÔ¼Ğ¡½Úµã×´Ì¬¼à²âÔ½¿ì
 
             // Ëæ»úÔÚ¼¯ÈºÖĞÌôÑ¡½Úµã
             de = dictGetRandomKey(server.cluster->nodes);
@@ -3832,8 +3901,8 @@ void clusterCron(void) {
             now - node->ping_sent > server.cluster_node_timeout/2) //ÎÒ·¢ËÍÁËping£¬µ«ÊÇ¶Ô¶Ënode¹ıÁËserver.cluster_node_timeout/2»¹Ã»ÓĞÓ¦´ğ
         {
             /* Disconnect the link, it will be reconnected automatically. */
-            // ÊÍ·ÅÁ¬½Ó£¬ÏÂ´Î clusterCron() »á×Ô¶¯ÖØÁ¬
-            freeClusterLink(node->link);
+            // ÊÍ·ÅÁ¬½Ó£¬ÏÂ´Î clusterCron() »á×Ô¶¯ÖØÁ¬£¬ÒòÎª
+            freeClusterLink(node->link); //ÕâÀïÃæ»á°ÑlinkÖÃÎªNULL£¬ÏÂ´ÎÔÙ´Î½øÈë¸Ãº¯Êıºó»áÂú×ãÇ°ÃæµÄlink=NULL,´Ó¶ø´ÓĞÂ½¨Á¢Á¬½Ó
         }
 
         /* If we have currently no active ping in this instance, and the
@@ -3848,6 +3917,11 @@ void clusterCron(void) {
             node->ping_sent == 0 &&
             (now - node->pong_received) > server.cluster_node_timeout/2) //ÎÒÒÑ¾­server.cluster_node_timeout/2ÕâÃ´¶àÊ±¼äÃ»Ïò¶Ô·½·¢ËÍpingÁË
         {
+            /*
+            Èç¹û½ÚµãA×îºóÒ»´ÎÊÕµ½½ÚµãB·¢ËÍµÄPONGÏûÏ¢µÄÊ±¼ä¾àÀëµ±Ç°Ê±¼äÒÑ¾­³¬¹ıÁË½ÚµãAµÄcluster-node-timeout
+            Ñ¡ÏîÊ±³¤µÄÒ»°ë£¬ÄÇÃ´½ÚµãAÒ²»áÏò½ÚµãB·¢ËÍPINGÏûÏ¢£¬Õâ¿ÉÒÔ·ÀÖ¹½ÚµãAÒòÎª³¤Ê±¼äÃ»ÓĞËæ»úÑ¡ÖĞ½ÚµãB×÷Îª
+            PINGÏûÏ¢µÄ·¢ËÍ¶ÔÏó¶øµ¼ÖÂ¶Ô½ÚµãBµÄĞÅÏ¢¸üĞÂÖÍºó¡£
+            */
             clusterSendPing(node->link, CLUSTERMSG_TYPE_PING);
             continue;
         }
@@ -3932,8 +4006,8 @@ void clusterCron(void) {
  *
  * ÔÚ½øÈëÏÂ¸öÊÂ¼şÑ­»·Ê±µ÷ÓÃ¡£ 
  * Õâ¸öº¯Êı×öµÄÊÂ¶¼ÊÇĞèÒª¾¡¿ìÖ´ĞĞ£¬µ«ÊÇ²»ÄÜÔÚÖ´ĞĞÎÄ¼şÊÂ¼şÆÚ¼ä×öµÄÊÂÇé¡£
- */
-void clusterBeforeSleep(void) {
+ */ //clusterBeforeSleep:ÔÚ½øÈëÏÂ¸öÊÂ¼şÑ­»·Ç°£¬Ö´ĞĞÒ»Ğ©¼¯ÈºÊÕÎ²¹¤×÷
+void clusterBeforeSleep(void) { //¸³ÖµÔÚclusterDoBeforeSleep£¬ÕæÕıÉúĞ§ÔÚclusterBeforeSleep
 
     /* Handle failover, this is needed when it is likely that there is already
      * the quorum from masters in order to react fast. */
@@ -3959,9 +4033,12 @@ void clusterBeforeSleep(void) {
     server.cluster->todo_before_sleep = 0;
 }
 
+////clusterBeforeSleep:ÔÚ½øÈëÏÂ¸öÊÂ¼şÑ­»·Ç°£¬¼¯ÈºĞèÒª×öµÄÊÂÇé  
+//clusterDoBeforeSleep:½ÚµãÔÚ½áÊøÒ»¸öÊÂ¼şÑ­»·Ê±Òª×öµÄ¹¤×÷
+
 // ´ò¿ª todo_before_sleep µÄÖ¸¶¨±êÊ¶
 // Ã¿¸ö±êÊ¶´ú±íÁË½ÚµãÔÚ½áÊøÒ»¸öÊÂ¼şÑ­»·Ê±Òª×öµÄ¹¤×÷
-void clusterDoBeforeSleep(int flags) {
+void clusterDoBeforeSleep(int flags) { //¸³ÖµÔÚclusterDoBeforeSleep£¬ÕæÕıÉúĞ§ÔÚclusterBeforeSleep
     server.cluster->todo_before_sleep |= flags;
 }
 
@@ -4101,7 +4178,7 @@ void clusterCloseAllSlots(void) {
 #define REDIS_CLUSTER_WRITABLE_DELAY 2000
 
 // ¸üĞÂ½Úµã×´Ì¬
-void clusterUpdateState(void) {
+void clusterUpdateState(void) { //¸üĞÂ±¾½ÚµãËùÔÚ¼¯ÈºµÄ×´Ì¬
     int j, new_state;
     int unreachable_masters = 0;
     static mstime_t among_minority_time;
@@ -4117,7 +4194,7 @@ void clusterUpdateState(void) {
      * to don't count the DB loading time. */
     if (first_call_time == 0) first_call_time = mstime();
     if (nodeIsMaster(myself) &&
-        mstime() - first_call_time < REDIS_CLUSTER_WRITABLE_DELAY) return;
+        mstime() - first_call_time < REDIS_CLUSTER_WRITABLE_DELAY) return; //×´Ì¬¸üĞÂ×ö20msÑÓ³Ù
 
     /* Start assuming the state is OK. We'll turn it into FAIL if there
      * are the right conditions. */
@@ -4154,7 +4231,7 @@ void clusterUpdateState(void) {
             if (nodeIsMaster(node) && node->numslots) {
                 server.cluster->size++; //°üÀ¨ÒÑÏÂÏßµÄ½Úµã
                 if (node->flags & (REDIS_NODE_FAIL|REDIS_NODE_PFAIL))
-                    unreachable_masters++;
+                    unreachable_masters++; //Òì³£½ÚµãµÄÊıÁ¿
             }
         }
         dictReleaseIterator(di);
@@ -4164,7 +4241,8 @@ void clusterUpdateState(void) {
      * to FAIL, as we are not even able to mark nodes as FAIL in this side
      * of the netsplit because of lack of majority.
      *
-     * Èç¹û²»ÄÜÁ¬½Óµ½°ëÊıÒÔÉÏ½Úµã£¬ÄÇÃ´½«ÎÒÃÇ×Ô¼ºµÄ×´Ì¬ÉèÖÃÎª FAIL     * ÒòÎªÔÚÉÙÓÚ°ëÊı½ÚµãµÄÇé¿öÏÂ£¬½ÚµãÊÇÎŞ·¨½«Ò»¸ö½ÚµãÅĞ¶ÏÎª FAIL µÄ¡£
+     * Èç¹û²»ÄÜÁ¬½Óµ½°ëÊıÒÔÉÏ½Úµã£¬ÄÇÃ´½«ÎÒÃÇ×Ô¼ºµÄ×´Ì¬ÉèÖÃÎª FAIL     
+     * ÒòÎªÔÚÉÙÓÚ°ëÊı½ÚµãµÄÇé¿öÏÂ£¬½ÚµãÊÇÎŞ·¨½«Ò»¸ö½ÚµãÅĞ¶ÏÎª FAIL µÄ¡£
      */
     {
         int needed_quorum = (server.cluster->size / 2) + 1;
@@ -4293,11 +4371,12 @@ int verifyClusterConfigWithData(void) {
 /* Set the specified node 'n' as master for this node.
  * If this node is currently a master, it is turned into a slave. */
 
-//slavofÖ÷±¸Í¬²½¹ı³Ì:(slaveof ip portÃüÁî)slaveofCommand->replicationSetMaster  (cluster replicateÃüÁî)clusterCommand->replicationSetMaster 
+//slavofÖ÷±¸Í¬²½¹ı³Ì:(slaveof ip portÃüÁî)slaveofCommand->replicationSetMaster  (cluster replicateÃüÁî)clusterCommand->clusterSetMaster->replicationSetMaster 
 //¼¯ÈºÖ÷±¸Ñ¡¾ÙºóÕûÌåÍ¬²½¹ı³Ì:´¥·¢ÉèÖÃserver.repl_state = REDIS_REPL_CONNECT£¬´Ó¶ø´¥·¢connectWithMaster¡£½øÒ»²½´¥·¢slaveTryPartialResynchronization·¢ËÍpsyn½øĞĞÕûÌåÍ¬²½
+//CLUSTER REPLICATE <node_id> ½«µ±Ç°½ÚµãÉèÖÃÎª node_id Ö¸¶¨µÄ½ÚµãµÄ´Ó½Úµã¡£
 
 // ½«½Úµã n ÉèÖÃÎªµ±Ç°½ÚµãµÄÖ÷½Úµã// Èç¹ûµ±Ç°½ÚµãÎªÖ÷½Úµã£¬ÄÇÃ´½«Ëü×ª»»Îª´Ó½Úµã
-void clusterSetMaster(clusterNode *n) {
+void clusterSetMaster(clusterNode *n) { //½ÚµãÆğÀ´Ä¬ÈÏÎªmasterµÄ£¬µ±Ö´ĞĞ
     redisAssert(n != myself);
     redisAssert(myself->numslots == 0);
 
@@ -4471,6 +4550,35 @@ int getSlotOrReply(redisClient *c, robj *o) {
     }
     return (int) slot;
 }
+
+/*
+http://www.cnblogs.com/tankaixiong/articles/4022646.html
+
+http://blog.csdn.net/dc_726/article/details/48552531
+
+¼¯Èº  
+CLUSTER INFO ´òÓ¡¼¯ÈºµÄĞÅÏ¢  
+CLUSTER NODES ÁĞ³ö¼¯Èºµ±Ç°ÒÑÖªµÄËùÓĞ½Úµã£¨node£©£¬ÒÔ¼°ÕâĞ©½ÚµãµÄÏà¹ØĞÅÏ¢¡£  
+½Úµã  
+CLUSTER MEET <ip> <port> ½« ip ºÍ port ËùÖ¸¶¨µÄ½ÚµãÌí¼Óµ½¼¯Èºµ±ÖĞ£¬ÈÃËü³ÉÎª¼¯ÈºµÄÒ»·İ×Ó¡£  
+CLUSTER FORGET <node_id> ´Ó¼¯ÈºÖĞÒÆ³ı node_id Ö¸¶¨µÄ½Úµã¡£  
+CLUSTER REPLICATE <node_id> ½«µ±Ç°½ÚµãÉèÖÃÎª node_id Ö¸¶¨µÄ½ÚµãµÄ´Ó½Úµã¡£   CLUSTER REPLICATE  ×¢ÒâºÍslaveofµÄÇø±ğ£¬slaveof²»ÄÜÓÃÓÚcluster,¼ûslaveofCommand
+CLUSTER SAVECONFIG ½«½ÚµãµÄÅäÖÃÎÄ¼ş±£´æµ½Ó²ÅÌÀïÃæ¡£  
+²Û(slot)  
+CLUSTER ADDSLOTS <slot> [slot ...] ½«Ò»¸ö»ò¶à¸ö²Û£¨slot£©Ö¸ÅÉ£¨assign£©¸øµ±Ç°½Úµã¡£  
+CLUSTER DELSLOTS <slot> [slot ...] ÒÆ³ıÒ»¸ö»ò¶à¸ö²Û¶Ôµ±Ç°½ÚµãµÄÖ¸ÅÉ¡£  
+CLUSTER FLUSHSLOTS ÒÆ³ıÖ¸ÅÉ¸øµ±Ç°½ÚµãµÄËùÓĞ²Û£¬ÈÃµ±Ç°½Úµã±ä³ÉÒ»¸öÃ»ÓĞÖ¸ÅÉÈÎºÎ²ÛµÄ½Úµã¡£  
+CLUSTER SETSLOT <slot> NODE <node_id> ½«²Û slot Ö¸ÅÉ¸ø node_id Ö¸¶¨µÄ½Úµã£¬Èç¹û²ÛÒÑ¾­Ö¸ÅÉ¸øÁíÒ»¸ö½Úµã£¬ÄÇÃ´ÏÈÈÃÁíÒ»¸ö½ÚµãÉ¾³ı¸Ã²Û>£¬È»ºóÔÙ½øĞĞÖ¸ÅÉ¡£  
+CLUSTER SETSLOT <slot> MIGRATING <node_id> ½«±¾½ÚµãµÄ²Û slot Ç¨ÒÆµ½ node_id Ö¸¶¨µÄ½ÚµãÖĞ¡£  
+CLUSTER SETSLOT <slot> IMPORTING <node_id> ´Ó node_id Ö¸¶¨µÄ½ÚµãÖĞµ¼Èë²Û slot µ½±¾½Úµã¡£  
+CLUSTER SETSLOT <slot> STABLE È¡Ïû¶Ô²Û slot µÄµ¼Èë£¨import£©»òÕßÇ¨ÒÆ£¨migrate£©¡£  
+¼ü  
+CLUSTER KEYSLOT <key> ¼ÆËã¼ü key Ó¦¸Ã±»·ÅÖÃÔÚÄÄ¸ö²ÛÉÏ¡£  
+CLUSTER COUNTKEYSINSLOT <slot> ·µ»Ø²Û slot Ä¿Ç°°üº¬µÄ¼üÖµ¶ÔÊıÁ¿¡£  
+CLUSTER GETKEYSINSLOT <slot> <count> ·µ»Ø count ¸ö slot ²ÛÖĞµÄ¼ü¡£
+
+¼¯Èº×ÊÁÏ:http://carlosfu.iteye.com/blog/2254573
+*/
 
 // CLUSTER ÃüÁîµÄÊµÏÖ
 void clusterCommand(redisClient *c) {   

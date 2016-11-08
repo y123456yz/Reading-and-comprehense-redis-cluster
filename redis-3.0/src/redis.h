@@ -1837,6 +1837,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     redisClient *master;     /* Client that is master for this slave */ //
     // 被缓存的主服务器，PSYNC 时使用  
 //例如从服务器之前和主服务器连接上，并同步了数据，中途端了，则连接断了后会在replicationCacheMaster把server.cached_master = server.master;表示之前有连接到过服务器
+//记录下这个主服务器机器相关状态的原因是，如果过一会儿又连接上了，则只需要部分从同步就可以了，而不用再做一次全量同步
     redisClient *cached_master; /* Cached master to be reused for PSYNC. */
     int repl_syncio_timeout; /* Timeout for synchronous I/O calls */
     // 复制的状态（服务器是从服务器时使用）  读取服务器端同步过来的rdb文件后，置为server.repl_state = REDIS_REPL_CONNECTED; 见readSyncBulkPayload
@@ -1894,6 +1895,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     /* Limits */
     int maxclients;                 /* Max number of simultaneous clients */
     //生效比较见freeMemoryIfNeeded，实际内存是算出来的  maxmemory参数进行配置
+    //如果内存超过该值，当继续set的时候会打印shared.oomerr
     unsigned long long maxmemory;   /* Max number of memory bytes to use */
     int maxmemory_policy;           /* Policy for key eviction */
     int maxmemory_samples;          /* Pricision of random sampling */

@@ -157,7 +157,7 @@ void loadServerConfigFromString(char *config) {
             if (errno || server.unixsocketperm > 0777) {
                 err = "Invalid socket file permissions"; goto loaderr;
             }
-        } else if (!strcasecmp(argv[0],"save")) {
+        } else if (!strcasecmp(argv[0],"save")) { //CONFIG SET SAVE ""表示禁用rdb功能    设置启用rdb功能使用CONFIG SET save "1 900 10 2000"
             if (argc == 3) {
                 int seconds = atoi(argv[1]);
                 int changes = atoi(argv[2]);
@@ -767,7 +767,7 @@ void configSetCommand(redisClient *c) {
 
         if (yn == -1) goto badfmt;
         server.aof_rewrite_incremental_fsync = yn;
-    } else if (!strcasecmp(c->argv[2]->ptr,"save")) {
+    } else if (!strcasecmp(c->argv[2]->ptr,"save")) { //CONFIG SET SAVE ""表示禁用rdb功能    设置启用rdb功能使用CONFIG SET save "1 900 10 2000"
         int vlen, j;
         sds *v = sdssplitlen(o->ptr,sdslen(o->ptr)," ",1,&vlen);
 
@@ -1137,7 +1137,7 @@ void configGetCommand(redisClient *c) { //config get命令获取所有的配置信息
         addReplyBulkCString(c,policy);
         matches++;
     }
-    if (stringmatch(pattern,"save",0)) {
+    if (stringmatch(pattern,"save",0)) { //CONFIG SET SAVE ""表示禁用rdb功能    设置启用rdb功能使用CONFIG SET save "1 900 10 2000"
         sds buf = sdsempty();
         int j;
 

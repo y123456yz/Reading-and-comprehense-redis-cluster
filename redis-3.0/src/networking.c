@@ -72,7 +72,7 @@ int listMatchObjects(void *a, void *b) {
 /*
  * 创建一个新客户端
  */
-redisClient *createClient(int fd) {
+redisClient *createClient(int fd) { //createClient，主 备全量同步完成后，备创建一个client来接收主到备的实时KV
 
     // 分配空间
     redisClient *c = zmalloc(sizeof(redisClient));
@@ -1614,10 +1614,12 @@ $3表示后面的get是3个字节。
     }
 }
 
-/*
+/* 
+//如果杀掉主节点redis，节点通过readQueryFromClient(备接收主的实时KV用这个)或者clusterReadHandler(集群之间通信用这个)中的read读异常事件检测到节点异常
  * 读取客户端的查询缓冲区内容
  */ //readQueryFromClient与sendReplyToClient对应，一个接收，一个发送  //创建TCP连接在acceptTcpHandler，关闭连接并释放资源见freeClient    读取数据在readQueryFromClient
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
+//主 备全量同步完成后，备创建一个client来接收主到备的实时KV,通过readQueryFromClient接收主来的实时KV数据
     redisClient *c = (redisClient*) privdata;
     int nread, readlen;
     size_t qblen;

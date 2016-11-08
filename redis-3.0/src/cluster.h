@@ -58,8 +58,24 @@
 struct clusterNode;
 
 
+
+/*  clusterNode和clusterLink 关系图
+    A连接B，发送MEET，A会创建B的clusterNode-B，并且创建B的link1，该clusterNode-B和link1在clusterCron中建立关系
+    B收到meet后，在clusterAcceptHandler中创建link2，在clusterProcessPacket中创建B的clusterNode-A,但是这时候的link2和clusterNode-A没有建立关系
+    紧接着B在clusterCron中发现clusterNode-A的link为NULL，于是B开始向A发起连接，从而创建link3并发送PING,并让clusterNode2和link3关联，A收到
+    B发送的连接请求后，创建新的link4,最终对应关系是:
+    
+    A节点                   B节点
+    clusterNode-B(link1) --->    link2(该link不属于任何clusterNode)     (A发起meet到B)                                               步骤1
+    link4      <----         clusterNode-A(link3) (该link不属于任何clusterNode)  (B收到meet后，再下一个clustercron中向A发起连接)     步骤2
+*/
+
+
 //客户端想服务端发送meet后，客户端通过和服务端建立连接来记录服务端节点clusterNode->link在clusterCron
 //服务端接收到连接后，通过clusterAcceptHandler建立客户端节点的clusterNode.link，见clusterAcceptHandler
+
+//A通过cluster meet bip bport  B后，B端在clusterAcceptHandler->clusterReadHandler接收连接，A端通过
+//clusterCommand->clusterStartHandshake触发clusterCron->anetTcpNonBlockBindConnect连接服务器
 
 
 //server.cluster(clusterState)->clusterState.nodes(clusterNode)->clusterNode.link(clusterLink)
@@ -82,10 +98,29 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 
     // 输入缓冲区，保存着从其他节点接收到的消息。见clusterReadHandler
     sds rcvbuf;                 /* Packet reception buffer */
+    
+    //A通过cluster meet bip bport  B后，B端在clusterAcceptHandler->clusterReadHandler接收连接，A端通过
+    //clusterCommand->clusterStartHandshake触发clusterCron->anetTcpNonBlockBindConnect连接服务器
  
     // 与这个连接相关联的节点，如果没有的话就为 NULL   
     //B节点连接到A节点，则A节点会创建一个clusterLink，并接收这个B节点相关的网络时间，其中的node就是B节点
-    struct clusterNode *node;   /* Node related to this link if any, or NULL */
+    //A meet B，A中赋值clusterCron->createClusterLink(node);  B接收到连接后会在clusterAcceptHandler->createClusterLink(null)(这时候node指向为空)创建A的clusterNode，只是node这时候为NULL
+
+    /*  clusterNode和clusterLink 关系图
+    A连接B，发送MEET，A会创建B的clusterNode-B，并且创建B的link1，该clusterNode-B和link1在clusterCron中建立关系
+    B收到meet后，在clusterAcceptHandler中创建link2，在clusterProcessPacket中创建B的clusterNode-A,但是这时候的link2和clusterNode-A没有建立关系
+    紧接着B在clusterCron中发现clusterNode-A的link为NULL，于是B开始向A发起连接，从而创建link3并发送PING,并让clusterNode2和link3关联，A收到
+    B发送的连接请求后，创建新的link4,最终对应关系是:
+    
+    A节点                   B节点
+    clusterNode-B(link1) --->    link2(该link不属于任何clusterNode)     (A发起meet到B)                                               步骤1
+    link4      <----         clusterNode-A(link3) (该link不属于任何clusterNode)  (B收到meet后，再下一个clustercron中向A发起连接)     步骤2
+    */ 
+    
+   //A MEET B,A建立连接向B，这时候A节点上记录的clusterNode和link是关联的，但是B接受连接后建立了link，这时候该link的node成员为NULL
+   //紧接着B向A发起连接，B上记录的A节点的clusterNode和link是关联的，但是A接受连接后建立的link的node成员为NULL
+   //也就是只有主动发起连接的时候建立的link，起clusterLink.node成员指向对端的clusterNode，被动接受连接的一端建立的clusterLink,它的node成员一直为NULL
+    struct clusterNode *node;   /* Node related to this link if any, or NULL */ //赋值见createClusterLink
 
 } clusterLink;
 
@@ -94,8 +129,8 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 /* Cluster node flags and macros. */
 // 该节点为主节点  在集群情况下，在redis起来的时候如果发现配置是cluster模式则会设置本节点模式为nodes.conf中的配置，或者主备情况下主挂了后，被被
 //其他的备节点被集群中的半数以上主节点选为主节点，则该节点变为主
-#define REDIS_NODE_MASTER 1     /* The node is a master */
-// 该节点为从节点
+#define REDIS_NODE_MASTER 1     /* The node is a master */  //节点起来后默认为MASTER，进行slaveof 或者cluster replicate后，通过clusterSetMaster把自己变为slave
+// 该节点为从节点 节点起来后默认为MASTER，进行slaveof 或者cluster replicate后，通过clusterSetMaster把自己变为slave
 #define REDIS_NODE_SLAVE 2      /* The node is a slave */
 // 该节点疑似下线，需要对它的状态进行确认
 #define REDIS_NODE_PFAIL 4      /* Failure? Need acknowledge */
@@ -105,7 +140,10 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 #define REDIS_NODE_MYSELF 16    /* This node is myself */
 
 //在敲cluster meet IP port的时候，在clusterStartHandshake中把节点状态置为REDIS_NODE_HANDSHAKE  REDIS_NODE_MEET ，或者从配置文件node.conf中读到的就是该状态
-// 该节点还未与当前节点完成第一次 PING - PONG 通讯   只有接受到某个node的ping pong meet则会清除该状态
+// 该节点还未与当前节点完成第一次 PING - PONG 通讯   只有接受到某个node的ping pong meet则会清除该状态，见clusterProcessPacket
+//在A上敲cluster meet B的时候，A想B发送MEET,B收到后，会创建A的clusterNode，同时把A节点状态置为NO-HANDSHARKE状态，见clusterProcessPacket
+
+//
 #define REDIS_NODE_HANDSHAKE 32 /* We have still to exchange the first ping */
 // 该节点没有地址  clusterProcessPacket值置为该状态，或者从配置文件node.conf中读到的就是该状态
 #define REDIS_NODE_NOADDR   64  /* We don't know the address of this node */
@@ -134,7 +172,7 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 // （认为目标节点已经下线）
 struct clusterNodeFailReport {
 
-    // 报告目标节点已经下线的节点
+    // 报告目标节点已经下线的节点  见clusterNodeAddFailureReport
     struct clusterNode *node;  /* Node reporting the failure condition. */
 
     // 最后一次从 node 节点收到下线报告的时间
@@ -142,6 +180,18 @@ struct clusterNodeFailReport {
     mstime_t time;             /* Time of the last report from this node. */
 
 } typedef clusterNodeFailReport;
+
+/*  clusterNode和clusterLink 关系图
+    A连接B，发送MEET，A会创建B的clusterNode-B，并且创建B的link1，该clusterNode-B和link1在clusterCron中建立关系
+    B收到meet后，在clusterAcceptHandler中创建link2，在clusterProcessPacket中创建B的clusterNode-A,但是这时候的link2和clusterNode-A没有建立关系
+    紧接着B在clusterCron中发现clusterNode-A的link为NULL，于是B开始向A发起连接，从而创建link3并发送PING,并让clusterNode2和link3关联，A收到
+    B发送的连接请求后，创建新的link4,最终对应关系是:
+    
+    A节点                   B节点
+    clusterNode-B(link1) --->    link2(该link不属于任何clusterNode)     (A发起meet到B)                                               步骤1
+    link4      <----         clusterNode-A(link3) (该link不属于任何clusterNode)  (B收到meet后，再下一个clustercron中向A发起连接)     步骤2
+*/
+
 
 //server.cluster(clusterState)->clusterState.nodes(clusterNode)->clusterNode.link(clusterLink)
 // 节点状态    节点创建在createClusterNode
@@ -208,7 +258,8 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     // 如果这是一个从节点，那么指向主节点
     struct clusterNode *slaveof; /* pointer to the master node */
 
-    //向该node节点最后一次发送ping消息的时间       本端ping对端，对端pong应答后会把该ping_pong置0，见clusterProcessPacket
+    //向该node节点最后一次发送ping消息的时间       
+    //本端ping对端，对端pong应答后会把该ping_sent置0，见clusterProcessPacket
     // 最后一次发送 PING 命令的时间   赋值见clusterSendPing
     mstime_t ping_sent;      /* Unix time we sent latest ping */
 
@@ -237,8 +288,19 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     //客户端想服务端发送meet后，客户端通过和服务端建立连接来记录服务端节点clusterNode->link在clusterCron
     //服务端接收到连接后，通过clusterAcceptHandler建立客户端节点的clusterNode.link，见clusterAcceptHandler
     
-    // 保存连接节点所需的有关信息   link节点创建和赋值见clusterCron.createClusterLink
-    clusterLink *link;          /* TCP/IP link with this node */
+    // 保存连接节点所需的有关信息   link节点创建和赋值见clusterCron.createClusterLink  
+    /*  clusterNode和clusterLink 关系图
+    A连接B，发送MEET，A会创建B的clusterNode-B，并且创建B的link1，该clusterNode-B和link1在clusterCron中建立关系
+    B收到meet后，在clusterAcceptHandler中创建link2，在clusterProcessPacket中创建B的clusterNode-A,但是这时候的link2和clusterNode-A没有建立关系
+    紧接着B在clusterCron中发现clusterNode-A的link为NULL，于是B开始向A发起连接，从而创建link3并发送PING,并让clusterNode2和link3关联，A收到
+    B发送的连接请求后，创建新的link4,最终对应关系是:
+    
+    A节点                   B节点
+    clusterNode-B(link1) --->    link2(该link不属于任何clusterNode)     (A发起meet到B)                                               步骤1
+    link4      <----         clusterNode-A(link3) (该link不属于任何clusterNode)  (B收到meet后，再下一个clusterCron中向A发起连接)     步骤2
+    */ 
+//clusterCron如果节点的link为NULL，则需要进行重连，在freeClusterLink中如果和集群中某个节点异常挂掉，则本节点通过读写事件而感知到，然后在freeClusterLink置为NULL
+    clusterLink *link;          /* TCP/IP link with this node */ //还有个赋值的地方在clusterCron
 
     // 一个链表，记录了所有其他节点对该节点的下线报告
     list *fail_reports;         /* List of nodes signaling this as failing */
@@ -288,7 +350,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     int state;            /* REDIS_CLUSTER_OK, REDIS_CLUSTER_FAIL, ... */
 
     // 集群中至少处理着一个槽的节点的数量。  clusterUpdateState中跟新   在线并且正在处理至少一个槽的 master 的数量
-    //注意:包括已下线的，因为已下线的node还是会在dict *nodes中 
+    //注意:包括已下线的，因为已下线的node还是会在dict *nodes中   可以参考clusterUpdateState
     int size;             /* Num of master nodes with at least one slot */ //默认从1开始，而不是从0开始
 
     //节点B通过cluster meet A-IP A-PORT把B节点添加到A节点在集群的时候，A节点的nodes里面就会有B节点的信息
@@ -370,7 +432,8 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     // 集群最后一次进行投票的纪元
     uint64_t lastVoteEpoch;     /* Epoch of the last vote granted. */
 
-    // 在进入下个事件循环之前要做的事情，以各个 flag 来记录
+    // 在进入下个事件循环之前要做的事情，以各个 flag 来记录   clusterDoBeforeSleep中赋值
+    // 代表了节点在结束一个事件循环时要做的工作  赋值在clusterDoBeforeSleep，真正生效在clusterBeforeSleep
     int todo_before_sleep; /* Things to do in clusterBeforeSleep(). */
 
     // 通过 cluster 连接发送的消息数量
@@ -382,12 +445,14 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
 } clusterState;
 
 /* clusterState todo_before_sleep flags. */
-// 以下每个 flag 代表了一个服务器在开始下一个事件循环之前
+//以下状态//赋值在clusterDoBeforeSleep，真正生效在clusterBeforeSleep
+// 以下每个 flag 代表了一个服务器在开始下一个事件循环之前   以下取值赋值见clusterDoBeforeSleep
 // 要做的事情
-#define CLUSTER_TODO_HANDLE_FAILOVER (1<<0)
-#define CLUSTER_TODO_UPDATE_STATE (1<<1)
-#define CLUSTER_TODO_SAVE_CONFIG (1<<2)
-#define CLUSTER_TODO_FSYNC_CONFIG (1<<3)
+#define CLUSTER_TODO_HANDLE_FAILOVER (1<<0) // 执行故障迁移
+//执行cluster reset节点离开集群，或者节点由OK变为pfail、fail。或者由fail、pfail转为ok的时候需要进行状态更新
+#define CLUSTER_TODO_UPDATE_STATE (1<<1)  // 更新节点的状态  
+#define CLUSTER_TODO_SAVE_CONFIG (1<<2) // 保存 nodes.conf 配置文件
+#define CLUSTER_TODO_FSYNC_CONFIG (1<<3) // 保存nodes.conf的时候是否需要立即把集群信息sync到文件中
 
 /* Redis cluster messages header */
 
@@ -395,6 +460,28 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
  * kind of packet. PONG is the reply to ping, in the exact format as a PING,
  * while MEET is a special PING that forces the receiver to add the sender
  * as a node (if it is not already in the list). */
+
+ /*
+ MEET消息:
+        当发送者接到客户端发送的CLUSTER MEET命令时，发送者会向接收者发送MEET消息，请求接收者加入到发送者当前
+    当前所在的集群里面。接收者接收到MEET命令后，会回复PING
+ 
+ PING消息:
+        默认每隔1s，从已知节点列表中随机选出5个节点，然后对这5个接地中最长时间没有发送过PING消息的节点发送PING
+    消息，以此来检测被选中的节点是否在线。如果节点A最后一次收到节点B发送的PONG消息的时间距离当前时间已经超
+    过了节点A的cluster-node-timeout选项时长的一半，那么节点A也会向节点B发送PING消息，这可以防止节点A因为长
+    时间没有随机选中节点B作为PING消息的发送对象而导致对节点B的信息更新滞后。
+
+ PONG消息:
+     当接收者接收到MEET消息或者PING消息后，为了向发送者确认这条MEET消息或者PING消息已经到达，接收者会向
+发送者返回一条PONG消息。另外，一个节点也可以通过向集群广播自己的PONG消息来让集群中的其他节点立即刷新关于这个节点的
+认识，例如当一次故障转移操作成功执行之后，新的主节点会向集群广播一条PONG消息，一次来让集群中的其他节点立即知道这个
+节点已经变成了主节点，并且接管了已下线节点负责的槽。
+
+ FAIL消息:
+     当一个主节点A判断另一个主节点B已经进入FAIL状态时，节点A会向集群广播一条关于节点B的FAIL消息，所有收到这条
+ 消息的节点会立即将节点B标记为已下线
+   */
 
 /* 下面这些赋值给clusterMsg.type   以下消息的处理统一在clusterReadHandler->clusterProcessPacket */
  

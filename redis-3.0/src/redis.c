@@ -1764,7 +1764,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     /* Send all the slaves an ACK request if at least one client blocked
      * during the previous event loop iteration. */
-    if (server.get_ack_from_slaves) {
+    if (server.get_ack_from_slaves) { //wait命令引起了阻塞，则需要所有客户端重新发送REPLCONF ACK XX，汇报自己的偏移量
         robj *argv[3];
 
         argv[0] = createStringObject("REPLCONF",8);
@@ -2837,7 +2837,7 @@ int processCommand(redisClient *c) {
         // 如果即将要执行的命令可能占用大量内存（REDIS_CMD_DENYOOM）
         // 并且前面的内存释放失败的话
         // 那么向客户端返回内存错误
-        if ((c->cmd->flags & REDIS_CMD_DENYOOM) && retval == REDIS_ERR) {
+        if ((c->cmd->flags & REDIS_CMD_DENYOOM) && retval == REDIS_ERR) { //如果内存用完，又没有过期的，则直接报错
             flagTransaction(c);
             addReply(c, shared.oomerr);
             return REDIS_OK;
@@ -2854,8 +2854,7 @@ int processCommand(redisClient *c) {
           server.aof_last_write_status == REDIS_ERR) &&
         server.masterhost == NULL &&
         (c->cmd->flags & REDIS_CMD_WRITE ||
-         c->cmd->proc == pingCommand))
-    {
+         c->cmd->proc == pingCommand)) //如果rdb aof失败，则任何命令都失效，不过可以通过设置//CONFIG SET SAVE ""表示禁用rdb功能把该失败禁止掉
         flagTransaction(c);
         if (server.aof_last_write_status == REDIS_OK)
             addReply(c, shared.bgsaveerr);
@@ -3950,6 +3949,10 @@ int linuxOvercommitMemoryValue(void) {
 
     return atoi(buf);
 }
+
+//注意:如果/proc/sys/vm/overcommit_memory被设置为0，并且配置了rdb重新功能，如果内存不足，则frok的时候会失败，如果在往redis中塞数据，
+//会失败，打印 MISCONF Redis is configured to save RDB snapshots, but is currently not able to persist on disk
+//如果/proc/sys/vm/overcommit_memory被设置为1，则不管内存够不够都会fork失败，这样会引发OOM，最终redis实例会被杀掉。
 
 void linuxOvercommitMemoryWarning(void) {
     if (linuxOvercommitMemoryValue() == 0) {

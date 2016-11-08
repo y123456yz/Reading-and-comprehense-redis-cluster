@@ -644,7 +644,7 @@ void aeMain(aeEventLoop *eventLoop) {
 
         // 如果有需要在事件处理前执行的函数，那么运行它
         if (eventLoop->beforesleep != NULL)
-            eventLoop->beforesleep(eventLoop);
+            eventLoop->beforesleep(eventLoop); //beforeSleep
 
         // 开始处理事件
         aeProcessEvents(eventLoop, AE_ALL_EVENTS);

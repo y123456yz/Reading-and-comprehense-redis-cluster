@@ -1082,6 +1082,9 @@ werr:
 //在updateSlavesWaitingBgsave中把重写的rdb文件传输到slave
 */
 int rdbSaveBackground(char *filename) {
+//注意:如果/proc/sys/vm/overcommit_memory被设置为0，并且配置了rdb重新功能，如果内存不足，则frok的时候会失败，如果在往redis中塞数据，
+//会失败，打印 MISCONF Redis is configured to save RDB snapshots, but is currently not able to persist on disk
+//如果/proc/sys/vm/overcommit_memory被设置为1，则不管内存够不够都会fork失败，这样会引发OOM，最终redis实例会被杀掉。所以最好是置为0
     pid_t childpid;
     long long start;
 

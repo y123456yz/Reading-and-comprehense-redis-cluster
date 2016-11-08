@@ -1385,7 +1385,7 @@ char *sendSynchronousCommand(int fd, ...) {
  *                      主服务器不支持 PSYNC ，调用者应该下降到 SYNC 命令。
  */
 
-//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->replicationSetMaster 
+//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->clusterSetMaster->replicationSetMaster 
 //集群主备选举后整体同步过程:触发设置server.repl_state = REDIS_REPL_CONNECT，从而触发connectWithMaster。进一步触发slaveTryPartialResynchronization发送psyn进行整体同步
 
 #define PSYNC_CONTINUE 0  //主服务器增量式发送命令报文过来
@@ -1706,7 +1706,7 @@ error:
     return;
 }
 
-//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->replicationSetMaster 
+//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->clusterSetMaster->replicationSetMaster 
 //集群主备选举后整体同步过程:触发设置server.repl_state = REDIS_REPL_CONNECT，从而触发connectWithMaster。进一步触发slaveTryPartialResynchronization发送psyn进行整体同步
 
 //主备同步会专门创建一个repl_transfer_s套接字(connectWithMaster)来进行主备同步，同步完成后在replicationAbortSyncTransfer中关闭该套接字
@@ -1787,7 +1787,7 @@ int cancelReplicationHandshake(void) {
     return 1;
 }
 
-//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->replicationSetMaster 
+//slavof主备同步过程:(slaveof ip port命令)slaveofCommand->replicationSetMaster  (cluster replicate命令)clusterCommand->clusterSetMaster->replicationSetMaster 
 //集群主备选举后整体同步过程:触发设置server.repl_state = REDIS_REPL_CONNECT，从而触发connectWithMaster。进一步触发slaveTryPartialResynchronization发送psyn进行整体同步
 
 
@@ -1875,6 +1875,7 @@ PSYNC命令的调用方法有两种：
 4. 如果主服务器返回-ERR回复，那么表示主服务器的版本低于Redis 2.8，它识别不
   了PSYNC命令，从服务器将向主服务器发送SYNC命令，并与主服务器执行完整同
   步操作。
+CLUSTER REPLICATE 也是添加节点为某个节点的从节点，见clusterCommand  注意和slaveof的区别，slaveof不能用于cluster,见slaveofCommand
 
 */
 //集群模式下，不允许接收slaveof命令，见slaveofCommand     slaveof是客户端发送的命令，redis里面是不会发送该命令的，是由客户端自己发送
@@ -1984,7 +1985,9 @@ void replicationSendAck(void) {
  * replicationResurrectCachedMaster() 在 PSYNC 成功时将缓存中的 master 提取出来，
  * 重新成为新的 master 。
  */
-void replicationCacheMaster(redisClient *c) {
+void replicationCacheMaster(redisClient *c) { 
+//和master连接断开，则需要记录该master到cache中，以备下次连接到该master后能够进行部分同步psyn，而不是再来一次
+//全量同步
     listNode *ln;
 
     redisAssert(server.master != NULL && server.cached_master == NULL);

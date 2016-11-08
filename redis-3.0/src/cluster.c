@@ -1565,7 +1565,7 @@ void clusterProcessGossipSection(clusterMsg *hdr, clusterLink *link) {
                     if (clusterNodeAddFailureReport(node,sender)) {
                         redisLog(REDIS_VERBOSE,
                             "Node %.40s reported node %.40s as not reachable.",
-                            sender->name, node->name);
+                            sender->name, node->name); //sender½Úµã¸æËß±¾½Úµãnode½ÚµãÒì³£ÁË
                     }
 
                     // ³¢ÊÔ½« node ±ê¼ÇÎª FAIL
@@ -2405,7 +2405,8 @@ int clusterProcessPacket(clusterLink *link) { //cluster½ÚµãÖ®¼ä¼ì²âÖ÷ÒªµÄÁ½¸ö½»»
         clusterProcessGossipSection(hdr,link);
 
      // ÕâÊÇÒ»Ìõ FAIL ÏûÏ¢£º sender ¸æÖªµ±Ç°½Úµã£¬Ä³¸ö½ÚµãÒÑ¾­½øÈë FAIL ×´Ì¬¡£
-    } else if (type == CLUSTERMSG_TYPE_FAIL) {
+    } else if (type == CLUSTERMSG_TYPE_FAIL) { 
+    //Ò»°ãÊÇ¼¯ÈºÖĞµÄÖ÷½Úµã·¢ÏÖ¼¯ÈºÖĞÄ³¸öÖ÷½Úµã¹ÒÁË£¬Ôò»áÍ¨Öª¹ıÀ´
         clusterNode *failing;
 
         if (sender) {

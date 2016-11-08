@@ -1834,7 +1834,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
 
     //当本节点是从节点的时候，就创建一个redisClient节点用来专门同步主节点发往本节点的实时KV对给本从服务器  
     //例如从服务器连接到本主服务器，客户端更新了KV，这个更新操作就通过该redisClient来和主服务器通信
-    redisClient *master;     /* Client that is master for this slave */ //
+    redisClient *master;     /* Client that is master for this slave */ //如果备和主连接端口，则备会把该master记录到cached_master中，见replicationCacheMaster
     // 被缓存的主服务器，PSYNC 时使用  
 //例如从服务器之前和主服务器连接上，并同步了数据，中途端了，则连接断了后会在replicationCacheMaster把server.cached_master = server.master;表示之前有连接到过服务器
 //记录下这个主服务器机器相关状态的原因是，如果过一会儿又连接上了，则只需要部分从同步就可以了，而不用再做一次全量同步

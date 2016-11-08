@@ -132,9 +132,12 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 #define REDIS_NODE_MASTER 1     /* The node is a master */  //节点起来后默认为MASTER，进行slaveof 或者cluster replicate后，通过clusterSetMaster把自己变为slave
 // 该节点为从节点 节点起来后默认为MASTER，进行slaveof 或者cluster replicate后，通过clusterSetMaster把自己变为slave
 #define REDIS_NODE_SLAVE 2      /* The node is a slave */
+
+//如果发送PING后，等待pong时间超时，则会在clusterCron中置为该状态，或者是在redis重启的时候从nodes.conf中读取
 // 该节点疑似下线，需要对它的状态进行确认
 #define REDIS_NODE_PFAIL 4      /* Failure? Need acknowledge */
-// 该节点已下线
+// 该节点已下线      
+//注意和CLUSTERMSG_TYPE_FAIL的区别，CLUSTERMSG_TYPE_FAIL是集群状态为fail,而REDIS_NODE_FAIL表示某个节点掉了，某个从节点掉了整个集群状态还是可用的
 #define REDIS_NODE_FAIL 8       /* The node is believed to be malfunctioning */
 // 该节点是当前节点自身
 #define REDIS_NODE_MYSELF 16    /* This node is myself */
@@ -170,7 +173,7 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 /* This structure represent elements of node->fail_reports. */
 // 每个 clusterNodeFailReport 结构保存了一条其他节点对目标节点的下线报告
 // （认为目标节点已经下线）
-struct clusterNodeFailReport {
+struct clusterNodeFailReport { //该结构存储在clusterNode->fail_reports中
 
     // 报告目标节点已经下线的节点  见clusterNodeAddFailureReport
     struct clusterNode *node;  /* Node reporting the failure condition. */
@@ -303,7 +306,9 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     clusterLink *link;          /* TCP/IP link with this node */ //还有个赋值的地方在clusterCron
 
     // 一个链表，记录了所有其他节点对该节点的下线报告
-    list *fail_reports;         /* List of nodes signaling this as failing */
+    //例如主节点A通过消息得知主节点B认为主节点C进入了疑似下线状态时，主节点A会在自己的clusterState.nodes
+    //字典中找到主节点C所对应的clusterNode结构，将主节点B的下线报告添加到fail_reports中,每个下线报告结构为clusterNodeFailReport
+    list *fail_reports;         /* List of nodes signaling this as failing */ //链表中成员类型为clusterNodeFailReport
 
 };
 typedef struct clusterNode clusterNode;
@@ -495,6 +500,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
 #define CLUSTERMSG_TYPE_PONG 1          /* Pong (reply to Ping) */
 // 请求将某个节点添加到集群中   MEET消息和PING消息都在clusterCron中发送
 #define CLUSTERMSG_TYPE_MEET 2          /* Meet "let's join" message */
+//注意和CLUSTERMSG_TYPE_FAIL的区别，CLUSTERMSG_TYPE_FAIL是集群状态为fail,而REDIS_NODE_FAIL表示某个节点掉了，某个从节点掉了整个集群状态还是可用的
 // 将某个节点标记为 FAIL   通过clusterBuildMessageHdr组包发送
 #define CLUSTERMSG_TYPE_FAIL 3          /* Mark node xxx as failing */
 // 通过发布与订阅功能广播消息

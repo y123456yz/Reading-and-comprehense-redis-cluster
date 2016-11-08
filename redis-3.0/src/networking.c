@@ -872,7 +872,7 @@ void disconnectSlaves(void) {
 /* This function is called when the slave lose the connection with the
  * master into an unexpected way. */
 // 这个函数在从服务器以外地和主服务器失去联系时调用
-void replicationHandleMasterDisconnection(void) {
+void replicationHandleMasterDisconnection(void) { //从服务器和主服务器连接端口，从服务器做的处理
     server.master = NULL;
     server.repl_state = REDIS_REPL_CONNECT;
     server.repl_down_since = server.unixtime;

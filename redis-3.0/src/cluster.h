@@ -5,10 +5,12 @@
  * Redis cluster data structures, defines, exported API.
  *----------------------------------------------------------------------------*/
 
+//集群状态更新在clusterUpdateState
 // 槽数量
 #define REDIS_CLUSTER_SLOTS 16384  //对应16K，也就是2的14次方
 // 集群在线
 #define REDIS_CLUSTER_OK 0          /* Everything looks ok */
+//CLUSTERMSG_TYPE_FAIL是消息头clusterMsg中的type字段，REDIS_NODE_FAIL是消息体clusterMsgData->clusterMsgDataFail中的flag字段,server.cluster->state =REDIS_CLUSTER_FAIL记录当前的集群状态
 // 集群下线
 #define REDIS_CLUSTER_FAIL 1        /* The cluster can't work */
 // 节点名字的长度
@@ -124,7 +126,7 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 
 } clusterLink;
 
-/*  一下这个标记赋值给clusterNode.flag */
+/*  REDIS_NODE_PFAIL等节点标识通过ping消息(消息头部type=CLUSTERMSG_TYPE_PING)发送给其他节点，然后其他节点把这个标记赋值给clusterNode.flag */
 
 /* Cluster node flags and macros. */
 // 该节点为主节点  在集群情况下，在redis起来的时候如果发现配置是cluster模式则会设置本节点模式为nodes.conf中的配置，或者主备情况下主挂了后，被被
@@ -134,11 +136,20 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 #define REDIS_NODE_SLAVE 2      /* The node is a slave */
 
 //如果发送PING后，等待pong时间超时，则会在clusterCron中置为该状态，或者是在redis重启的时候从nodes.conf中读取
+//clusterProcessGossipSection->clusterNodeAddFailureReport把接收的fail或者pfail添加到本地fail_reports
+//如果某个节点掉了，clusterSendPing通过发送PING消息携带出去的，这样其他节点在clusterProcessGossipSection收到后就知道了
+//只有发送MEET(携带节点pfail或者fail)的sender为master的时候，接收到才会做处理，见clusterProcessGossipSection
+
 // 该节点疑似下线，需要对它的状态进行确认
-#define REDIS_NODE_PFAIL 4      /* Failure? Need acknowledge */
+#define REDIS_NODE_PFAIL 4      /* Failure? Need acknowledge */ //如果一个主节点掉线，则其他主节点通过ping--PONG交互来判断该节点是否掉线了
 // 该节点已下线      
 //注意和CLUSTERMSG_TYPE_FAIL的区别，CLUSTERMSG_TYPE_FAIL是集群状态为fail,而REDIS_NODE_FAIL表示某个节点掉了，某个从节点掉了整个集群状态还是可用的
-#define REDIS_NODE_FAIL 8       /* The node is believed to be malfunctioning */
+//CLUSTERMSG_TYPE_FAIL用于通告集群的FAIL信息
+//CLUSTERMSG_TYPE_FAIL是消息头clusterMsg中的type字段，REDIS_NODE_FAIL是消息体clusterMsgDataGossip->flag字段,server.cluster->state =REDIS_CLUSTER_FAIL记录当前的集群状态
+//如果除了本节点以外，有一半的节点都认为该节点下线了，则从pfail->fail状态，见markNodeAsFailingIfNeeded，或者clusterProcessPacket
+/*  REDIS_NODE_PFAIL等节点标识通过ping消息(消息头部type=CLUSTERMSG_TYPE_PING)发送给其他节点，然后其他节点把这个标记赋值给clusterNode.flag 然后ProcessGossipSection接收 */
+#define REDIS_NODE_FAIL 8       /* The node is believed to be malfunctioning */ 
+
 // 该节点是当前节点自身
 #define REDIS_NODE_MYSELF 16    /* This node is myself */
 
@@ -175,11 +186,11 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 // （认为目标节点已经下线）
 struct clusterNodeFailReport { //该结构存储在clusterNode->fail_reports中
 
-    // 报告目标节点已经下线的节点  见clusterNodeAddFailureReport
+    // 报告目标节点已经下线的节点  见clusterNodeAddFailureReport   node是sender主节点，注意node是主节点，见clusterProcessGossipSection
     struct clusterNode *node;  /* Node reporting the failure condition. */
 
     // 最后一次从 node 节点收到下线报告的时间
-    // 程序使用这个时间戳来检查下线报告是否过期
+    // 程序使用这个时间戳来检查下线报告是否过期  见clusterNodeCleanupFailureReports，如果下线报告超过一定值，需要把该下线报告过期
     mstime_t time;             /* Time of the last report from this node. */
 
 } typedef clusterNodeFailReport;
@@ -207,6 +218,7 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     // 例如 68eef66df23420a5862208ef5b1a7005b806f2ff
     char name[REDIS_CLUSTER_NAMELEN]; /* Node name, hex string, sha1-size */
 
+    /* REDIS_NODE_PFAIL等节点标识通过ping消息(消息头部type=CLUSTERMSG_TYPE_PING)发送给其他节点，然后其他节点把这个标记赋值给clusterNode.flag */
     // 节点标识
     // 使用各种不同的标识值记录节点的角色（比如主节点或者从节点），
     // 以及节点目前所处的状态（比如在线或者下线）。  取值REDIS_NODE_MASTER  REDIS_NODE_PFAIL等
@@ -308,6 +320,9 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     // 一个链表，记录了所有其他节点对该节点的下线报告
     //例如主节点A通过消息得知主节点B认为主节点C进入了疑似下线状态时，主节点A会在自己的clusterState.nodes
     //字典中找到主节点C所对应的clusterNode结构，将主节点B的下线报告添加到fail_reports中,每个下线报告结构为clusterNodeFailReport
+
+    //注意这上面记录的是除本节点以外的其他所有节点(包括主和从)发送过来的该下线节点的下线报告，其他节点通过ping--PONG超时来判断的
+    //clusterNodeAddFailureReport中可以看出，fail_reports链表上所记录的clusterNodeFailReport.sender主节点表示:该sender主节点检测到本clusterNode节点下线了
     list *fail_reports;         /* List of nodes signaling this as failing */ //链表中成员类型为clusterNodeFailReport
 
 };
@@ -355,7 +370,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     int state;            /* REDIS_CLUSTER_OK, REDIS_CLUSTER_FAIL, ... */
 
     // 集群中至少处理着一个槽的节点的数量。  clusterUpdateState中跟新   在线并且正在处理至少一个槽的 master 的数量
-    //注意:包括已下线的，因为已下线的node还是会在dict *nodes中   可以参考clusterUpdateState
+    //注意:包括已下线的，因为已下线的node还是会在dict *nodes中   可以参考clusterUpdateState, size指的是master节点中处理槽位的节点数
     int size;             /* Num of master nodes with at least one slot */ //默认从1开始，而不是从0开始
 
     //节点B通过cluster meet A-IP A-PORT把B节点添加到A节点在集群的时候，A节点的nodes里面就会有B节点的信息
@@ -501,7 +516,8 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
 // 请求将某个节点添加到集群中   MEET消息和PING消息都在clusterCron中发送
 #define CLUSTERMSG_TYPE_MEET 2          /* Meet "let's join" message */
 //注意和CLUSTERMSG_TYPE_FAIL的区别，CLUSTERMSG_TYPE_FAIL是集群状态为fail,而REDIS_NODE_FAIL表示某个节点掉了，某个从节点掉了整个集群状态还是可用的
-// 将某个节点标记为 FAIL   通过clusterBuildMessageHdr组包发送
+// 将某个节点标记为 FAIL   通过clusterBuildMessageHdr组包发送， 赋值见clusterSendFail
+//CLUSTERMSG_TYPE_FAIL是消息头clusterMsg中的type字段，REDIS_NODE_FAIL是消息体clusterMsgData->clusterMsgDataFail中的flag字段,server.cluster->state =REDIS_CLUSTER_FAIL记录当前的集群状态
 #define CLUSTERMSG_TYPE_FAIL 3          /* Mark node xxx as failing */
 // 通过发布与订阅功能广播消息
 #define CLUSTERMSG_TYPE_PUBLISH 4       /* Pub/Sub Publish propagation */
@@ -519,7 +535,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
  * address for all the next messages. */
 //clusterMsg是集群节点通信的消息头，消息体是结构clusterMsgData，
 //clusterMsgData包括clusterMsgDataGossip、clusterMsgDataFail、clusterMsgDataPublish、clusterMsgDataUpdate
-typedef struct {  //ping  pong meet消息用该结构，见clusterProcessPacket
+typedef struct {  //ping  pong meet消息用该结构，见clusterProcessPacket   REDIS_NODE_FAIL也在该消息中携带过去，见CLUSTERMSG_TYPE_PING中的注释
 
     // 节点的名字
     // 在刚开始的时候，节点的名字会是随机的
@@ -539,7 +555,7 @@ typedef struct {  //ping  pong meet消息用该结构，见clusterProcessPacket
     uint16_t port;  /* port last time it was seen */
 
     // 节点的标识值
-    uint16_t flags;
+    uint16_t flags; //REDIS_NODE_FAIL， REDIS_NODE_MASTER多个可以同时携带到该flags中
 
     // 对齐字节，不使用
     uint32_t notused; /* for 64 bit alignment */

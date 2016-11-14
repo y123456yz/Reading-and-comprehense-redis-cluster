@@ -805,7 +805,7 @@ clusterNode *createClusterNode(char *nodename, int flags) {
  * 返回 1 则表示创建了一条新的下线报告。
  */
 int clusterNodeAddFailureReport(clusterNode *failing, clusterNode *sender) {
-
+//sender节点告诉本节点，failing节点下线了，本节点需要记录该信息到faling->fail_reports
     // 指向保存下线报告的链表
     list *l = failing->fail_reports;
 
@@ -1278,12 +1278,12 @@ int clusterBlacklistExists(char *nodeid) {
  *    又或者，因为没有半数的节点支持，当前节点不能将 node 标记为 FAIL ，
  *    所以对 FAIL 节点的故障转移将无法进行， FAIL 标识可能会在之后被移除。
  *    
- */
-void markNodeAsFailingIfNeeded(clusterNode *node) {
+ */ //主节点和从节点都可以执行该函数markNodeAsFailingIfNeeded来判断该节点是否从pfail->fail
+void markNodeAsFailingIfNeeded(clusterNode *node) { //node是其他节点认为该node节点pfail或者fail的节点，就是参数node为fail或者pfail节点
     int failures;
 
    // 标记为 FAIL 所需的节点数量，需要超过集群节点数量的一半
-    int needed_quorum = (server.cluster->size / 2) + 1;
+    int needed_quorum = (server.cluster->size / 2) + 1; //需要处理槽位的主节点数的一半+1, 这上面记录的是主节点并且处理槽位数的节点的一半+1
 
     if (!nodeTimedOut(node)) return; /* We can reach it. */
     if (nodeFailed(node)) return; /* Already FAILing. */
@@ -1559,10 +1559,11 @@ void clusterProcessGossipSection(clusterMsg *hdr, clusterLink *link) {
              // 如果 sender 是一个主节点，那么我们需要处理下线报告
             if (sender && nodeIsMaster(sender) && node != myself) {
                 // 节点处于 FAIL 或者 PFAIL 状态
-                if (flags & (REDIS_NODE_FAIL|REDIS_NODE_PFAIL)) {
+                if (flags & (REDIS_NODE_FAIL|REDIS_NODE_PFAIL)) {//发送端每隔1s会从集群挑选一个节点来发送PING，参考CLUSTERMSG_TYPE_PING
 
                     // 添加 sender 对 node 的下线报告
-                    if (clusterNodeAddFailureReport(node,sender)) {
+                    if (clusterNodeAddFailureReport(node,sender)) { 
+                    //clusterProcessGossipSection->clusterNodeAddFailureReport把接收的fail或者pfail添加到本地fail_reports
                         redisLog(REDIS_VERBOSE,
                             "Node %.40s reported node %.40s as not reachable.",
                             sender->name, node->name); //sender节点告诉本节点node节点异常了
@@ -4179,7 +4180,7 @@ void clusterCloseAllSlots(void) {
 #define REDIS_CLUSTER_WRITABLE_DELAY 2000
 
 // 更新节点状态
-void clusterUpdateState(void) { //更新本节点所在集群的状态
+void clusterUpdateState(void) { //更新本节点所在整个集群的状态
     int j, new_state;
     int unreachable_masters = 0;
     static mstime_t among_minority_time;
@@ -4248,7 +4249,7 @@ void clusterUpdateState(void) { //更新本节点所在集群的状态
     {
         int needed_quorum = (server.cluster->size / 2) + 1;
 
-        if (unreachable_masters >= needed_quorum) {
+        if (unreachable_masters >= needed_quorum) { //整个集群中一大半的负责处理槽位的节点都下线了，则标记集群为FAIL
             new_state = REDIS_CLUSTER_FAIL;
             among_minority_time = mstime();
         }

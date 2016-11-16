@@ -931,7 +931,7 @@ int clusterNodeDelFailureReport(clusterNode *node, clusterNode *sender) {
  *
  * ¼ÆËã²»°üÀ¨±¾½ÚµãÔÚÄÚµÄ£¬ 
  * ½« node ±ê¼ÇÎª PFAIL »òÕß FAIL µÄ½ÚµãµÄÊıÁ¿¡£
- */
+ */ //¼ÆËãÆäËûmaster½Úµã±¨¸æ¸Ãnode½Úµãpfail»òÕßfailµÄmasterÊı
 int clusterNodeFailureReportsCount(clusterNode *node) {
 
      // ÒÆ³ı¹ıÆÚµÄÏÂÏß±¨¸æ
@@ -1285,8 +1285,9 @@ void markNodeAsFailingIfNeeded(clusterNode *node) { //nodeÊÇÆäËû½ÚµãÈÏÎª¸Ãnode½Ú
    // ±ê¼ÇÎª FAIL ËùĞèµÄ½ÚµãÊıÁ¿£¬ĞèÒª³¬¹ı¼¯Èº½ÚµãÊıÁ¿µÄÒ»°ë
     int needed_quorum = (server.cluster->size / 2) + 1; //ĞèÒª´¦Àí²ÛÎ»µÄÖ÷½ÚµãÊıµÄÒ»°ë+1, ÕâÉÏÃæ¼ÇÂ¼µÄÊÇÖ÷½Úµã²¢ÇÒ´¦Àí²ÛÎ»ÊıµÄ½ÚµãµÄÒ»°ë+1
 
-    if (!nodeTimedOut(node)) return; /* We can reach it. */
-    if (nodeFailed(node)) return; /* Already FAILing. */
+    //ÆäËû½Úµã·¢ËÍ¹ıÀ´µÄMEETĞ¯´øµÄnodeÊÇpfail×´Ì¬£¬²¢ÇÒ²»ÊÇfail×´Ì¬µÄ²Å»á½øĞĞºóĞøµÄ´¦Àí
+    if (!nodeTimedOut(node)) return; /* We can reach it. */ //Ö»ÓĞnode½ÚµãÊÇpfail×´Ì¬µÄ²Å½øĞĞºóÃæ´¦Àí£¬²»ÊÇpfail×´Ì¬£¬Ö±½ÓÍË³ö
+    if (nodeFailed(node)) return; /* Already FAILing. */ //ËµÃ÷¸Ã½ÚµãÒÑ¾­È·ÈÏ½øÈëfailÁË£¬return
 
      // Í³¼Æ½« node ±ê¼ÇÎª PFAIL »òÕß FAIL µÄ½ÚµãÊıÁ¿£¨²»°üÀ¨µ±Ç°½Úµã£©
     failures = clusterNodeFailureReportsCount(node);
@@ -1309,8 +1310,8 @@ void markNodeAsFailingIfNeeded(clusterNode *node) { //nodeÊÇÆäËû½ÚµãÈÏÎª¸Ãnode½Ú
     /* Broadcast the failing node name to everybody, forcing all the other
      * reachable nodes to flag the node as FAIL. */
     // Èç¹ûµ±Ç°½ÚµãÊÇÖ÷½ÚµãµÄ»°£¬ÄÇÃ´ÏòÆäËû½Úµã·¢ËÍ±¨¸æ node µÄ FAIL ĞÅÏ¢    // ÈÃÆäËû½ÚµãÒ²½« node ±ê¼ÇÎª FAIL
-    if (nodeIsMaster(myself)) clusterSendFail(node->name);
-    clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
+    if (nodeIsMaster(myself)) clusterSendFail(node->name); 
+    clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG); //clusterBeforeSleep´¦ÀíÕâÁ½¸ö×´Ì¬ clusterUpdateStateÖĞ¸üĞÂ×´Ì¬
 }
 
 /* This function is called only if a node is marked as FAIL, but we are able
@@ -2416,7 +2417,8 @@ int clusterProcessPacket(clusterLink *link) { //cluster½ÚµãÖ®¼ä¼ì²âÖ÷ÒªµÄÁ½¸ö½»»
             failing = clusterLookupNode(hdr->data.fail.about.nodename);
             // ÏÂÏßµÄ½Úµã¼È²»ÊÇµ±Ç°½Úµã£¬Ò²Ã»ÓĞ´¦ÓÚ FAIL ×´Ì¬
             if (failing &&
-                !(failing->flags & (REDIS_NODE_FAIL|REDIS_NODE_MYSELF)))
+                !(failing->flags & (REDIS_NODE_FAIL|REDIS_NODE_MYSELF))) 
+                //Èç¹û±¾½ÚµãÒÑ¾­±»±ê¼ÇÎªÏÂÏß½Úµã»ã×ÜÏÂÏß½Úµã¾ÍÊÇ½Úµã×Ô¼º£¬Ôò´òÓ¡´¦Àí
             {
                 redisLog(REDIS_NOTICE,
                     "FAIL message received from %.40s about %.40s",
@@ -2469,7 +2471,8 @@ int clusterProcessPacket(clusterLink *link) { //cluster½ÚµãÖ®¼ä¼ì²âÖ÷ÒªµÄÁ½¸ö½»»
         }
 
     // ÕâÊÇÒ»ÌõÇëÇó»ñµÃ¹ÊÕÏÇ¨ÒÆÊÚÈ¨µÄÏûÏ¢£º sender ÇëÇóµ±Ç°½ÚµãÎªËü½øĞĞ¹ÊÕÏ×ªÒÆÍ¶Æ±
-    } else if (type == CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST) {
+    } else if (type == CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST) { 
+        //slave¼ì²âµ½×Ô¼ºµÄmasterµôÁË£¬ÔÚclusterRequestFailoverAuth·¢ËÍ¸Ãfailover request£¬¸Ãsender slave½ÚµãÒªÇó¶ÔËû½øĞĞÍ¶Æ±
         if (!sender) return 1;  /* We don't know that node. */
         // Èç¹ûÌõ¼şÔÊĞíµÄ»°£¬Ïò sender Í¶Æ±£¬Ö§³ÖËü½øĞĞ¹ÊÕÏ×ªÒÆ
         clusterSendFailoverAuthIfNeeded(sender,hdr);
@@ -2712,7 +2715,7 @@ void clusterSendMessage(clusterLink *link, unsigned char *msg, size_t msglen) {
  * It is guaranteed that this function will never have as a side effect
  * some node->link to be invalidated, so it is safe to call this function
  * from event handlers that will do stuff with node links later. */
-void clusterBroadcastMessage(void *buf, size_t len) {
+void clusterBroadcastMessage(void *buf, size_t len) { //bufÀïÃæµÄÄÚÈİÎªclusterMsg+clusterMsgData
     dictIterator *di;
     dictEntry *de;
 
@@ -3054,8 +3057,9 @@ void clusterSendPublish(clusterLink *link, robj *channel, robj *message) {
  * ÄÇÃ´µ±Ç°½Úµã»á½« node ±ê¼ÇÎª FAIL £¬
  * ²¢Ö´ĞĞÕâ¸öº¯Êı£¬ÏòÆäËû node ·¢ËÍ FAIL ÏûÏ¢£¬ 
  * ÒªÇóËüÃÇÒ²½« node ±ê¼ÇÎª FAIL ¡£
- */
-void clusterSendFail(char *nodename) {
+ */ //Ö»ÓĞÖ÷½ÚµãÅĞ¶Ï³öÄ³¸ö½ÚµãfailÁË²Å»áµ÷ÓÃ¸Ãº¯ÊıÍ¨Öª¸øËùÓĞÆäËû½Úµã£¬ÆäËû½Úµã¾Í»á°Ñ¸ÃÏÂÏß½Úµã±ê¼ÇÎªfail
+void clusterSendFail(char *nodename) { 
+//Èç¹û³¬¹ıÒ»°ëµÄÖ÷½ÚµãÈÏÎª¸Ãnodename½ÚµãÏÂÏßÁË£¬ÔòĞèÒª°Ñ¸Ã½ÚµãÏÂÏßĞÅÏ¢Í¬²½µ½Õû¸öcluster¼¯Èº
     unsigned char buf[sizeof(clusterMsg)];
     clusterMsg *hdr = (clusterMsg*) buf;
 
@@ -3122,7 +3126,10 @@ void clusterPropagatePublish(robj *channel, robj *message) {
  * but only the masters are supposed to reply to our query. 
  *
  * ĞÅÏ¢»á±»·¢ËÍ¸øËùÓĞ½Úµã£¬°üÀ¨Ö÷½ÚµãºÍ´Ó½Úµã£¬µ«Ö»ÓĞÖ÷½Úµã»á»Ø¸´ÕâÌõĞÅÏ¢¡£ 
- */
+ */ // ÏòÆäËûËùÓĞ½Úµã·¢ËÍĞÅÏ¢£¬¿´ËüÃÇÊÇ·ñÖ§³ÖÓÉ±¾½ÚµãÀ´¶ÔÏÂÏßÖ÷½Úµã½øĞĞ¹ÊÕÏ×ªÒÆ
+ 
+ //slave¼ì²âµ½×Ô¼ºµÄmasterµôÁË£¬ÔòÔÚclusterRequestFailoverAuth·¢ËÍfailover request£¬ÆäËû½ÚµãÊÕµ½ºóÔÚ
+ //clusterSendFailoverAuthIfNeeded½øĞĞÍ¶Æ±£¬Ö»ÓĞÖ÷½Úµã»áÓ¦´ğ
 void clusterRequestFailoverAuth(void) {
     unsigned char buf[sizeof(clusterMsg)];
     clusterMsg *hdr = (clusterMsg*) buf;
@@ -3171,8 +3178,12 @@ void clusterSendMFStart(clusterNode *node) {
 
 /* Vote for the node asking for our vote if there are the conditions. */
 // ÔÚÌõ¼şÂú×ãµÄÇé¿öÏÂ£¬ÎªÇëÇó½øĞĞ¹ÊÕÏ×ªÒÆµÄ½Úµã node ½øĞĞÍ¶Æ±£¬Ö§³ÖËü½øĞĞ¹ÊÕÏ×ªÒÆ
-void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
-
+//slave¼ì²âµ½×Ô¼ºµÄmasterµôÁË£¬ÔòÔÚclusterRequestFailoverAuth·¢ËÍfailover request£¬ÆäËû½ÚµãÊÕµ½ºóÔÚclusterSendFailoverAuthIfNeeded½øĞĞÍ¶Æ±£¬Ö»ÓĞÖ÷½Úµã»áÓ¦´ğ
+void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {//nodeÎªsender
+//Ö÷½Úµã¶Ôslave·¢ËÍ¹ıÀ´µÄCLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST½øĞĞÍ¶Æ±
+/*
+¼¯ÈºÖĞËùÓĞ½ÚµãÊÕµ½ÓÃÓÚÀ­Æ±µÄCLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST°üºó£¬Ö»ÓĞ¸ºÔğÒ»¶¨²ÛÎ»µÄÖ÷½ÚµãÄÜÍ¶Æ±£¬ÆäËûÃ»×Ê¸ñµÄ½ÚµãÖ±½ÓºöÂÔµô¸Ã°ü¡£
+*/
     // ÇëÇó½ÚµãµÄÖ÷½Úµã    
     clusterNode *master = node->slaveof;   
 
@@ -3194,32 +3205,95 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
 
     // Èç¹û½ÚµãÎª´Ó½Úµã£¬»òÕßÊÇÒ»¸öÃ»ÓĞ´¦ÀíÈÎºÎ²ÛµÄÖ÷½Úµã£¬ 
     // ÄÇÃ´ËüÃ»ÓĞÍ¶Æ±È¨
-    if (nodeIsSlave(myself) || myself->numslots == 0) return;
+    if (nodeIsSlave(myself) || myself->numslots == 0) return; //´Ó½ÚµãºÍ²»¸ºÔğ²ÛÎ»´¦ÀíµÄÖ±½Ó·µ»Ø£¬²»²ÎÓëÍ¶Æ±
 
     /* Request epoch must be >= our currentEpoch. */
      // ÇëÇóµÄÅäÖÃ¼ÍÔª±ØĞë´óÓÚµÈÓÚµ±Ç°½ÚµãµÄÅäÖÃ¼ÍÔª
-    if (requestCurrentEpoch < server.cluster->currentEpoch) return;
+     /*
+     Èç¹û·¢ËÍÕßµÄcurrentEpochĞ¡ÓÚµ±Ç°½ÚµãµÄcurrentEpoch£¬Ôò¾Ü¾øÎªÆäÍ¶Æ±¡£ÒòÎª·¢ËÍÕßµÄ×´Ì¬Óëµ±Ç°¼¯Èº×´Ì¬²»Ò»ÖÂ£¬
+     ¿ÉÄÜÊÇ³¤Ê±¼äÏÂÏßµÄ½Úµã¸Õ¸ÕÉÏÏß£¬ÕâÖÖÇé¿öÏÂ£¬Ö±½Ó·µ»Ø¼´¿É£»
+     */
+    if (requestCurrentEpoch < server.cluster->currentEpoch) {
+        redisLog(REDIS_WARNING,
+            "Failover auth denied to %.40s: reqEpoch (%llu) < curEpoch(%llu)",
+            node->name,
+            (unsigned long long) requestCurrentEpoch,
+            (unsigned long long) server.cluster->currentEpoch);
+        return;
+    }
 
     /* I already voted for this epoch? Return ASAP. */
     // ÒÑ¾­Í¶¹ıÆ±ÁË
-    if (server.cluster->lastVoteEpoch == server.cluster->currentEpoch) return;
-
+    /*
+    Èç¹ûµ±Ç°½ÚµãlastVoteEpoch£¬Óëµ±Ç°½ÚµãµÄcurrentEpochÏàµÈ£¬ËµÃ÷±¾½çÑ¡¾ÙÖĞ£¬µ±Ç°½ÚµãÒÑ¾­Í¶¹ıÆ±ÁË£¬²»
+    ÔÚÖØ¸´Í¶Æ±£¬Ö±½Ó·µ»Ø£¨Òò´Ë£¬Èç¹ûÓĞÁ½¸ö´Ó½ÚµãÍ¬Ê±·¢ÆğÀ­Æ±£¬Ôòµ±Ç°½ÚµãÏÈÊÕµ½ÄÄ¸ö½ÚµãµÄ°ü£¬¾ÍÖ»¸øÄÇ¸ö
+    ½ÚµãÍ¶Æ±¡£×¢Òâ£¬¼´Ê¹ÕâÁ½¸ö´Ó½Úµã·ÖÊô²»Í¬Ö÷½Úµã£¬Ò²Ö»ÄÜÓĞÒ»¸ö´Ó½Úµã»ñµÃÑ¡Æ±£©£»
+    */
+    if (server.cluster->lastVoteEpoch == server.cluster->currentEpoch) {
+        redisLog(REDIS_WARNING,
+                "Failover auth denied to %.40s: already voted for epoch %llu",
+                node->name,
+                (unsigned long long) server.cluster->currentEpoch);
+        return;
+    }
+    
     /* Node must be a slave and its master down.
      * The master can be non failing if the request is flagged
      * with CLUSTERMSG_FLAG0_FORCEACK (manual failover). */
+    /*
+    Èç¹û·¢ËÍ½ÚµãÊÇÖ÷½Úµã£»»òÕß·¢ËÍ½ÚµãËäÈ»ÊÇ´Ó½Úµã£¬µ«ÊÇÕÒ²»µ½ÆäÖ÷½Úµã£»»òÕß·¢ËÍ½ÚµãµÄÖ÷½Úµã²¢Î´ÏÂÏß
+    ²¢ÇÒÕâ²»ÊÇÊÖ¶¯Ç¿ÖÆ¿ªÊ¼µÄ¹ÊÕÏ×ªÒÆÁ÷³Ì£¬Ôò¸ù¾İ²»Í¬µÄÌõ¼ş£¬¼ÇÂ¼ÈÕÖ¾ºóÖ±½Ó·µ»Ø£»
+    */
     if (nodeIsMaster(node) || master == NULL ||
-        (!nodeFailed(master) && !force_ack)) return;
-
+        (!nodeFailed(master) && !force_ack)) {
+        if (nodeIsMaster(node)) { //auth  request±ØĞëÓÉslave·¢Æğ
+            redisLog(REDIS_WARNING,
+                    "Failover auth denied to %.40s: it is a master node",
+                    node->name);
+        } else if (master == NULL) {
+        //slaveÈÏÎª×Ô¼ºµÄmasterÏÂÏßÁË£¬µ«ÊÇ±¾½Úµã²»ÖªµÀËûµÄmasterÊÇÄÇ¸ö£¬Ò²¾Í²»ÖªµÀÊÇÎªÄÇ¸ömasterµÄslaveÍ¶Æ±£¬
+        //ÒòÎªÎÒÃÇÒª¼ÇÂ¼ÊÇ¶ÔÄÇ¸ömasterµÄ´Ó½ÚµãÍ¶Æ±µÄ£¬¿´ifºóÃæµÄÁ÷³Ì
+            redisLog(REDIS_WARNING,
+                    "Failover auth denied to %.40s: I don't know its master",
+                    node->name);
+        } else if (!nodeFailed(master)) { //´ÓÕâÀïÒ²¿ÉÒÔ¿´³ö£¬±ØĞë¼¯ÈºÖĞÓĞÒ»¸öÖ÷½ÚµãÅĞ¶Ï³öÄ³¸ö½ÚµãfailÁË£¬²Å»á´¦Àíslave·¢ËÍ¹ıÀ´µÄauth req
+        //slaveÈÏÎª×Ô¼ºµÄmasterÏÂÏßÁË£¬ÓÚÊÇ·¢ËÍ¹ıÀ´auth request,±¾Ö÷½ÚµãÊÕµ½¸ÃĞÅÏ¢ºó£¬·¢ÏÖ
+        //¸Ãslave¶ÔÓ¦µÄmasterÊÇÕı³£µÄ£¬Òò´Ë¸ø³ö´òÓ¡£¬²»Í¶Æ±
+            redisLog(REDIS_WARNING,
+                    "Failover auth denied to %.40s: its master is up",
+                    node->name);
+        }
+        return;
+    }
     /* We did not voted for a slave about this master for two
      * times the node timeout. This is not strictly needed for correctness
      * of the algorithm but makes the base case more linear. */
+     /*
+     Õë¶ÔÍ¬Ò»¸öÏÂÏßÖ÷½Úµã£¬ÔÚ2*server.cluster_node_timeoutÊ±¼äÄÚ£¬Ö»»áÍ¶Ò»´ÎÆ±£¬Õâ²¢·Ç±ØĞëµÄÏŞÖÆÌõ
+     ¼ş£¨ÒòÎªÖ®Ç°µÄlastVoteEpochÅĞ¶Ï£¬ÒÑ¾­¿ÉÒÔ±ÜÃâÁ½¸ö´Ó½ÚµãÍ¬Ê±Ó®µÃ±¾½çÑ¡¾ÙÁË£©£¬µ«ÊÇÕâ¿ÉÒÔÊ¹µÃ»ñ
+     Ê¤´Ó½ÚµãÓĞÊ±¼ä½«Æä³ÉÎªĞÂÖ÷½ÚµãµÄÏûÏ¢Í¨Öª¸øÆäËû´Ó½Úµã£¬´Ó¶ø±ÜÃâÁíÒ»¸ö´Ó½Úµã·¢ÆğĞÂÒ»ÂÖÑ¡¾ÙÓÖ½ø
+     ĞĞÒ»´ÎÃ»±ØÒªµÄ¹ÊÕÏ×ªÒÆ£»
+     */
      // Èç¹ûÖ®Ç°Ò»¶ÎÊ±¼äÒÑ¾­¶ÔÇëÇó½Úµã½øĞĞ¹ıÍ¶Æ±£¬ÄÇÃ´²»½øĞĞÍ¶Æ±
     if (mstime() - node->slaveof->voted_time < server.cluster_node_timeout * 2)
+    {
+        redisLog(REDIS_WARNING,
+                "Failover auth denied to %.40s: "
+                "can't vote about this master before %lld milliseconds",
+                node->name,
+                (long long) ((server.cluster_node_timeout*2)-
+                             (mstime() - node->slaveof->voted_time)));
         return;
+    }
 
     /* The slave requesting the vote must have a configEpoch for the claimed
      * slots that is >= the one of the masters currently serving the same
      * slots in the current configuration. */
+    /*
+        ÅĞ¶Ï·¢ËÍ½Úµã£¬¶ÔÆäĞû³ÆÒª¸ºÔğµÄ²ÛÎ»£¬ÊÇ·ñ±ÈÖ®Ç°¸ºÔğÕâĞ©²ÛÎ»µÄ½Úµã£¬¾ßÓĞÏàµÈ»ò¸üĞÂµÄÅäÖÃ¼ÍÔªconfigEpoch£º
+    ¸Ã²ÛÎ»µ±Ç°µÄ¸ºÔğ½ÚµãµÄconfigEpoch£¬ÊÇ·ñ±È·¢ËÍ½ÚµãµÄconfigEpochÒª´ó£¬ÈôÊÇ£¬ËµÃ÷·¢ËÍ½ÚµãµÄÅäÖÃĞÅÏ¢²»ÊÇ×îĞÂµÄ£¬
+    ¿ÉÄÜÊÇÒ»¸ö³¤Ê±¼äÏÂÏßµÄ½ÚµãÓÖÖØĞÂÉÏÏßÁË£¬ÕâÖÖÇé¿öÏÂ£¬²»ÄÜ¸øËûÍ¶Æ±£¬Òò´ËÖ±½Ó·µ»Ø£»
+    */
     for (j = 0; j < REDIS_CLUSTER_SLOTS; j++) {
 
          // Ìø¹ıÎ´Ö¸ÅÉ½Úµã
@@ -3236,6 +3310,12 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
         /* If we reached this point we found a slot that in our current slots
          * is served by a master with a greater configEpoch than the one claimed
          * by the slave requesting our vote. Refuse to vote for this slave. */
+        redisLog(REDIS_WARNING,
+                "Failover auth denied to %.40s: "
+                "slot %d epoch (%llu) > reqEpoch (%llu)",
+                node->name, j,
+                (unsigned long long) server.cluster->slots[j]->configEpoch,
+                (unsigned long long) requestConfigEpoch);
         return;
     }
 
@@ -3245,6 +3325,9 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
     // ¸üĞÂÊ±¼äÖµ
     server.cluster->lastVoteEpoch = server.cluster->currentEpoch;
     node->slaveof->voted_time = mstime();
+
+    redisLog(REDIS_WARNING, "Failover auth granted to %.40s for epoch %llu",
+        node->name, (unsigned long long) server.cluster->currentEpoch);
 }
 
 /* This function returns the "rank" of this instance, a slave, in the context
@@ -3259,6 +3342,14 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
  * The slave rank is used to add a delay to start an election in order to
  * get voted and replace a failing master. Slaves with better replication
  * offsets are more likely to win. */
+ /*
+rank±íÊ¾´Ó½ÚµãµÄÅÅÃû£¬ÅÅÃûÊÇÖ¸µ±Ç°´Ó½ÚµãÔÚÏÂÏßÖ÷½ÚµãµÄËùÓĞ´Ó½ÚµãÖĞµÄÅÅÃû£¬ÅÅÃûÖ÷ÒªÊÇ¸ù¾İ¸´ÖÆÊı¾İÁ¿À´¶¨£¬
+¸´ÖÆÊı¾İÁ¿Ô½¶à£¬ÅÅÃûÔ½¿¿Ç°£¬Òò´Ë£¬¾ßÓĞ½Ï¶à¸´ÖÆÊı¾İÁ¿µÄ´Ó½Úµã¿ÉÒÔ¸üÔç·¢Æğ¹ÊÕÏ×ªÒÆÁ÷³Ì£¬´Ó¶ø¸ü¿ÉÄÜ³ÉÎªĞÂµÄÖ÷½Úµã¡£
+
+È»ºóµ÷ÓÃreplicationGetSlaveOffsetº¯Êı£¬µÃµ½µ±Ç°´Ó½ÚµãµÄ¸´ÖÆÆ«ÒÆÁ¿myoffset£»½ÓÏÂÀ´ÂÖÑµmaster->slavesÊı×é£¬
+Ö»ÒªÆäÖĞ´Ó½ÚµãµÄ¸´ÖÆÆ«ÒÆÁ¿´óÓÚmyoffset£¬ÔòÔö¼ÓÅÅÃûrankµÄÖµ£»ÔÚÃ»ÓĞ¿ªÊ¼¹ÊÕÏ×ªÒÆÖ®Ç°£¬Ã¿¸ôÒ»¶ÎÊ±¼ä¾Í»áµ÷ÓÃ
+Ò»´ÎclusterGetSlaveRankº¯Êı£¬ÒÔ¸üĞÂµ±Ç°´Ó½ÚµãµÄÅÅÃû¡£
+ */
 int clusterGetSlaveRank(void) {
     long long myoffset;
     int j, rank = 0;
@@ -3274,6 +3365,71 @@ int clusterGetSlaveRank(void) {
             master->slaves[j]->repl_offset > myoffset) rank++;
     return rank;
 }
+
+/* This function is called by clusterHandleSlaveFailover() in order to
+ * let the slave log why it is not able to failover. Sometimes there are
+ * not the conditions, but since the failover function is called again and
+ * again, we can't log the same things continuously.
+ *
+ * This function works by logging only if a given set of conditions are
+ * true:
+ *
+ * 1) The reason for which the failover can't be initiated changed.
+ *    The reasons also include a NONE reason we reset the state to
+ *    when the slave finds that its master is fine (no FAIL flag).
+ * 2) Also, the log is emitted again if the master is still down and
+ *    the reason for not failing over is still the same, but more than
+ *    REDIS_CLUSTER_CANT_FAILOVER_RELOG_PERIOD seconds elapsed.
+ * 3) Finally, the function only logs if the slave is down for more than
+ *    five seconds + NODE_TIMEOUT. This way nothing is logged when a
+ *    failover starts in a reasonable time.
+ *
+ * The function is called with the reason why the slave can't failover
+ * which is one of the integer macros REDIS_CLUSTER_CANT_FAILOVER_*.
+ *
+ * The function is guaranteed to be called only if 'myself' is a slave. */
+void clusterLogCantFailover(int reason) {
+    char *msg;
+    static time_t lastlog_time = 0;
+    mstime_t nolog_fail_time = server.cluster_node_timeout + 5000;
+
+    /* Don't log if we have the same reason for some time. */
+    if (reason == server.cluster->cant_failover_reason &&
+        time(NULL)-lastlog_time < REDIS_CLUSTER_CANT_FAILOVER_RELOG_PERIOD)
+        return;
+
+    server.cluster->cant_failover_reason = reason;
+
+    /* We also don't emit any log if the master failed no long ago, the
+     * goal of this function is to log slaves in a stalled condition for
+     * a long time. */
+    if (myself->slaveof &&
+        nodeFailed(myself->slaveof) &&
+        (mstime() - myself->slaveof->fail_time) < nolog_fail_time) return;
+
+    switch(reason) {
+    case REDIS_CLUSTER_CANT_FAILOVER_DATA_AGE:
+        msg = "Disconnected from master for longer than allowed. "
+              "Please check the 'cluster-slave-validity-factor' configuration "
+              "option.";
+        break;
+    case REDIS_CLUSTER_CANT_FAILOVER_WAITING_DELAY:
+        msg = "Waiting the delay before I can start a new failover.";
+        break;
+    case REDIS_CLUSTER_CANT_FAILOVER_EXPIRED:
+        msg = "Failover attempt expired.";
+        break;
+    case REDIS_CLUSTER_CANT_FAILOVER_WAITING_VOTES:
+        msg = "Waiting for votes, but majority still not reached.";
+        break;
+    default:
+        msg = "Unknown reason code.";
+        break;
+    }
+    lastlog_time = time(NULL);
+    redisLog(REDIS_WARNING,"Currently unable to failover: %s", msg);
+}
+
 
 /* This function is called if we are a slave node and our master serving
  * a non-zero amount of hash slots is in FAIL state.
@@ -3291,16 +3447,29 @@ int clusterGetSlaveRank(void) {
  *    Ñ¡¾ÙÒ»¸öĞÂµÄÖ÷½Úµã 
  * 3) Perform the failover informing all the other nodes.
  *    Ö´ĞĞ¹ÊÕÏ×ªÒÆ£¬²¢Í¨ÖªÆäËû½Úµã
-
- */
-void clusterHandleSlaveFailover(void) { //¶ÔCLUSTER_TODO_HANDLE_FAILOVER×´Ì¬µÄ´¦Àí
+ */ 
+/*
+´Ó½ÚµãµÄ¹ÊÕÏ×ªÒÆ£¬ÊÇÔÚº¯ÊıclusterHandleSlaveFailoverÖĞ´¦ÀíµÄ£¬¸Ãº¯ÊıÔÚ¼¯Èº¶¨Ê±Æ÷º¯ÊıclusterCronÖĞµ÷ÓÃ¡£±¾º¯Êı
+ÓÃÓÚ´¦Àí´Ó½Úµã½øĞĞ¹ÊÕÏ×ªÒÆµÄÕû¸öÁ÷³Ì£¬°üÀ¨£ºÅĞ¶ÏÊÇ·ñ¿ÉÒÔ·¢ÆğÑ¡¾Ù£»ÅĞ¶ÏÑ¡¾ÙÊÇ·ñ³¬Ê±£»ÅĞ¶Ï×Ô¼ºÊÇ·ñÀ­
+µ½ÁË×ã¹»µÄÑ¡Æ±£»Ê¹×Ô¼ºÉı¼¶ÎªĞÂµÄÖ÷½ÚµãÕâĞ©ËùÓĞÁ÷³Ì¡£
+*/
+ //slaveµ÷ÓÃ
+void clusterHandleSlaveFailover(void) { //clusterBeforeSleep¶ÔCLUSTER_TODO_HANDLE_FAILOVER×´Ì¬µÄ´¦Àí,»òÕßclusterCronÖĞÊµÊ±´¦Àí
+    //Ò²¾ÍÊÇµ±Ç°´Ó½ÚµãÓëÖ÷½ÚµãÒÑ¾­¶ÏÁ´ÁË¶à³¤Ê±¼ä,´ÓÍ¨¹ıping pong³¬Ê±£¬¼ì²âµ½±¾slaveµÄmasterµôÏßÁË£¬´ÓÕâÊ±ºò¿ªÊ¼Ëã
     mstime_t data_age;
+    //¸Ã±äÁ¿±íÊ¾¾àÀë·¢Æğ¹ÊÕÏ×ªÒÆÁ÷³Ì£¬ÒÑ¾­¹ıÈ¥ÁË¶àÉÙÊ±¼ä£»
     mstime_t auth_age = mstime() - server.cluster->failover_auth_time;
+    //¸Ã±äÁ¿±íÊ¾µ±Ç°´Ó½Úµã±ØĞëÖÁÉÙ»ñµÃ¶àÉÙÑ¡Æ±£¬²ÅÄÜ³ÉÎªĞÂµÄÖ÷½Úµã
     int needed_quorum = (server.cluster->size / 2) + 1;
+    //±íÊ¾ÊÇ·ñÊÇ¹ÜÀíÔ±ÊÖ¶¯´¥·¢µÄ¹ÊÕÏ×ªÒÆÁ÷³Ì£»
     int manual_failover = server.cluster->mf_end != 0 &&
                           server.cluster->mf_can_start;
     int j;
-    mstime_t auth_timeout, auth_retry_time;
+    //¸Ã±äÁ¿±íÊ¾¹ÊÕÏ×ªÒÆÁ÷³Ì(·¢ÆğÍ¶Æ±£¬µÈ´ı»ØÓ¦)µÄ³¬Ê±Ê±¼ä£¬³¬¹ı¸ÃÊ±¼äºó»¹Ã»ÓĞ»ñµÃ×ã¹»µÄÑ¡Æ±£¬Ôò±íÊ¾±¾´Î¹ÊÕÏ×ªÒÆÊ§°Ü£»
+    mstime_t auth_timeout, 
+    //¸Ã±äÁ¿±íÊ¾ÅĞ¶ÏÊÇ·ñ¿ÉÒÔ¿ªÊ¼ÏÂÒ»´Î¹ÊÕÏ×ªÒÆÁ÷³ÌµÄÊ±¼ä£¬Ö»ÓĞ¾àÀëÉÏÒ»´Î·¢Æğ¹ÊÕÏ×ªÒÆÊ±£¬ÒÑ¾­³¬¹ıauth_retry_timeÖ®ºó£¬
+    //²Å±íÊ¾¿ÉÒÔ¿ªÊ¼ÏÂÒ»´Î¹ÊÕÏ×ªÒÆÁË£¨auth_age > auth_retry_time£©£»
+             auth_retry_time;
 
     server.cluster->todo_before_sleep &= ~CLUSTER_TODO_HANDLE_FAILOVER;
 
@@ -3320,27 +3489,41 @@ void clusterHandleSlaveFailover(void) { //¶ÔCLUSTER_TODO_HANDLE_FAILOVER×´Ì¬µÄ´¦
      * 1) We are a slave.
      * 2) Our master is flagged as FAIL, or this is a manual failover.
      * 3) It is serving slots. */
+    /*
+    µ±Ç°½ÚµãÊÇÖ÷½Úµã£»µ±Ç°½ÚµãÊÇ´Ó½Úµãµ«ÊÇÃ»ÓĞÖ÷½Úµã£»µ±Ç°½ÚµãµÄÖ÷½Úµã²»´¦ÓÚÏÂÏß×´Ì¬²¢ÇÒ²»ÊÇÊÖ¶¯Ç¿ÖÆ½øĞĞ¹ÊÕÏ×ªÒÆ£»
+    µ±Ç°½ÚµãµÄÖ÷½ÚµãÃ»ÓĞ¸ºÔğµÄ²ÛÎ»¡£Âú×ãÒÔÉÏÈÎÒ»Ìõ¼ş£¬Ôò²»ÄÜ½øĞĞ¹ÊÕÏ×ªÒÆ£¬Ö±½Ó·µ»Ø¼´¿É£»
+    */
     if (nodeIsMaster(myself) ||
         myself->slaveof == NULL ||
         (!nodeFailed(myself->slaveof) && !manual_failover) ||
-        myself->slaveof->numslots == 0) return;
+        myself->slaveof->numslots == 0) {
+        //ÕæÕı°ÑslaveofÖÃÎªNULLÔÚºóÃæÕæÕı±¸Ñ¡¾ÙÎªÖ÷µÄÊ±ºòÉèÖÃ£¬¼ûºóÃæµÄreplicationUnsetMaster
+        /* There are no reasons to failover, so we set the reason why we
+         * are returning without failing over to NONE. */
+        server.cluster->cant_failover_reason = REDIS_CLUSTER_CANT_FAILOVER_NONE;
+        return;
+    }; 
+
+    //slave´Ó½Úµã½øĞĞºóĞø´¦Àí£¬²¢ÇÒºÍÖ÷·şÎñÆ÷¶Ï¿ªÁËÁ¬½Ó
 
     /* Set data_age to the number of seconds we are disconnected from
      * the master. */
     // ½« data_age ÉèÖÃÎª´Ó½ÚµãÓëÖ÷½ÚµãµÄ¶Ï¿ªÃëÊı
     if (server.repl_state == REDIS_REPL_CONNECTED) {
-        data_age = (mstime_t)(server.unixtime - server.master->lastinteraction)
-                   * 1000;
+        data_age = (mstime_t)(server.unixtime - server.master->lastinteraction) 
+                   * 1000; //Ò²¾ÍÊÇµ±Ç°´Ó½ÚµãÓëÖ÷½Úµã×îºóÒ»´ÎÍ¨ĞÅ¹ıÁË¶à¾ÃÁË
     } else {
-        data_age = (mstime_t)(server.unixtime - server.repl_down_since) * 1000;
+        //±¾´Ó½ÚµãºÍÖ÷½Úµã¶Ï¿ªÁË¶à¾Ã£¬
+        data_age = (mstime_t)(server.unixtime - server.repl_down_since) * 1000; 
     }
 
     /* Remove the node timeout from the data age as it is fine that we are
      * disconnected from our master at least for the time it was down to be
      * flagged as FAIL, that's the baseline. */
-    // node timeout µÄÊ±¼ä²»¼ÆÈë¶ÏÏßÊ±¼äÖ®ÄÚ
+    // node timeout µÄÊ±¼ä²»¼ÆÈë¶ÏÏßÊ±¼äÖ®ÄÚ Èç¹ûdata_age´óÓÚserver.cluster_node_timeout£¬Ôò´Ódata_ageÖĞ
+    //¼õÈ¥server.cluster_node_timeout£¬ÒòÎª¾­¹ıserver.cluster_node_timeoutÊ±¼äÃ»ÓĞÊÕµ½Ö÷½ÚµãµÄPING»Ø¸´£¬²Å»á½«Æä±ê¼ÇÎªPFAIL
     if (data_age > server.cluster_node_timeout)
-        data_age -= server.cluster_node_timeout;
+        data_age -= server.cluster_node_timeout; //´ÓÍ¨¹ıping pong³¬Ê±£¬¼ì²âµ½±¾slaveµÄmasterµôÏßÁË£¬´ÓÕâÊ±ºò¿ªÊ¼Ëã
 
     /* Check if our data is recent enough. For now we just use a fixed
      * constant of ten times the node timeout since the cluster should
@@ -3349,28 +3532,45 @@ void clusterHandleSlaveFailover(void) { //¶ÔCLUSTER_TODO_HANDLE_FAILOVER×´Ì¬µÄ´¦
      * Check bypassed for manual failovers. */
     // ¼ì²éÕâ¸ö´Ó½ÚµãµÄÊı¾İÊÇ·ñ½ÏĞÂ£º   
     // Ä¿Ç°µÄ¼ì²â°ì·¨ÊÇ¶ÏÏßÊ±¼ä²»ÄÜ³¬¹ı node timeout µÄÊ®±¶
+    /* data_ageÖ÷ÒªÓÃÓÚÅĞ¶Ïµ±Ç°´Ó½ÚµãµÄÊı¾İĞÂÏÊ¶È£»Èç¹ûdata_age³¬¹ıÁËÒ»¶¨Ê±¼ä£¬±íÊ¾µ±Ç°´Ó½ÚµãµÄÊı¾İÒÑ¾­Ì«ÀÏÁË£¬
+    ²»ÄÜÌæ»»µôÏÂÏßÖ÷½Úµã£¬Òò´ËÔÚ²»ÊÇÊÖ¶¯Ç¿ÖÆ¹ÊÕÏ×ªÒÆµÄÇé¿öÏÂ£¬Ö±½Ó·µ»Ø£»*/
     if (data_age >
         ((mstime_t)server.repl_ping_slave_period * 1000) +
         (server.cluster_node_timeout * REDIS_CLUSTER_SLAVE_VALIDITY_MULT))
     {
-        if (!manual_failover) return;
+        if (!manual_failover) {
+            clusterLogCantFailover(REDIS_CLUSTER_CANT_FAILOVER_DATA_AGE);
+            return;
+        }
     }
 
     /* If the previous failover attempt timedout and the retry time has
      * elapsed, we can setup a new one. */
-    if (auth_age > auth_retry_time) {
+    /*
+    Èç¹ûauth_age´óÓÚauth_retry_time£¬±íÊ¾¿ÉÒÔ¿ªÊ¼½øĞĞÏÂÒ»´Î¹ÊÕÏ×ªÒÆÁË¡£Èç¹ûÖ®Ç°Ã»ÓĞ½øĞĞ¹ı¹ÊÕÏ×ªÒÆ£¬Ôòauth_ageµÈ
+    ÓÚmstime£¬¿Ï¶¨´óÓÚauth_retry_time£»Èç¹ûÖ®Ç°½øĞĞ¹ı¹ÊÕÏ×ªÒÆ£¬ÔòÖ»ÓĞ¾àÀëÉÏÒ»´Î·¢Æğ¹ÊÕÏ×ªÒÆÊ±£¬ÒÑ¾­³¬¹ı
+    auth_retry_timeÖ®ºó£¬²Å±íÊ¾¿ÉÒÔ¿ªÊ¼ÏÂÒ»´Î¹ÊÕÏ×ªÒÆ¡£
+    */
+    if (auth_age > auth_retry_time) { 
         server.cluster->failover_auth_time = mstime() +
             500 + /* Fixed delay of 500 milliseconds, let FAIL msg propagate. */
-            random() % 500; /* Random delay between 0 and 500 milliseconds. */
+            random() % 500; /* Random delay between 0 and 500 milliseconds. */ //µÈµ½Õâ¸öÊ±¼äµ½²Å½øĞĞ¹ÊÕÏ×ªÒÆ
         server.cluster->failover_auth_count = 0;
         server.cluster->failover_auth_sent = 0;
-        server.cluster->failover_auth_rank = clusterGetSlaveRank();
+        server.cluster->failover_auth_rank = clusterGetSlaveRank();//±¾½Úµã°´ÕÕÔÚmasterÖĞµÄrepl_offsetÀ´»ñÈ¡ÅÅÃû
         /* We add another delay that is proportional to the slave rank.
          * Specifically 1 second * rank. This way slaves that have a probably
          * less updated replication offset, are penalized. */
         server.cluster->failover_auth_time +=
             server.cluster->failover_auth_rank * 1000;
+            
         /* However if this is a manual failover, no delay is needed. */
+
+        /*
+        ×¢ÒâÈç¹ûÊÇ¹ÜÀíÔ±·¢ÆğµÄÊÖ¶¯Ç¿ÖÆÖ´ĞĞ¹ÊÕÏ×ªÒÆ£¬ÔòÉèÖÃserver.cluster->failover_auth_timeÎªµ±Ç°Ê±¼ä£¬±íÊ¾»á
+        Á¢¼´¿ªÊ¼¹ÊÕÏ×ªÒÆÁ÷³Ì£»×îºó£¬µ÷ÓÃclusterBroadcastPong£¬Ïò¸ÃÏÂÏßÖ÷½ÚµãµÄËùÓĞ´Ó½Úµã·¢ËÍPONG°ü£¬°üÍ·²¿·Ö´ø
+        ÓĞµ±Ç°´Ó½ÚµãµÄ¸´ÖÆÊı¾İÁ¿£¬Òò´ËÆäËû´Ó½ÚµãÊÕµ½Ö®ºó£¬¿ÉÒÔ¸üĞÂ×Ô¼ºµÄÅÅÃû£»×îºóÖ±½Ó·µ»Ø£»
+        */
         if (server.cluster->mf_end) {
             server.cluster->failover_auth_time = mstime();
             server.cluster->failover_auth_rank = 0;
@@ -3384,17 +3584,28 @@ void clusterHandleSlaveFailover(void) { //¶ÔCLUSTER_TODO_HANDLE_FAILOVER×´Ì¬µÄ´¦
         /* Now that we have a scheduled election, broadcast our offset
          * to all the other slaves so that they'll updated their offsets
          * if our offset is better. */
+        /*
+        µ÷ÓÃclusterBroadcastPong£¬Ïò¸ÃÏÂÏßÖ÷½ÚµãµÄËùÓĞ´Ó½Úµã·¢ËÍPONG°ü£¬°üÍ·²¿·Ö´ø
+        ÓĞµ±Ç°´Ó½ÚµãµÄ¸´ÖÆÊı¾İÁ¿£¬Òò´ËÆäËû´Ó½ÚµãÊÕµ½Ö®ºó£¬¿ÉÒÔ¸üĞÂ×Ô¼ºµÄÅÅÃû£»×îºóÖ±½Ó·µ»Ø£»
+        */
         clusterBroadcastPong(CLUSTER_BROADCAST_LOCAL_SLAVES);
         return;
     }
+
+    /* ½øĞĞ¹ÊÕÏ×ªÒÆ */
 
     /* It is possible that we received more updated offsets from other
      * slaves for the same master since we computed our election delay.
      * Update the delay if our rank changed.
      *
      * Not performed if this is a manual failover. */
+    /*
+    Èç¹û»¹Ã»ÓĞ¿ªÊ¼¹ÊÕÏ×ªÒÆ£¬Ôòµ÷ÓÃclusterGetSlaveRank£¬È¡µÃµ±Ç°´Ó½ÚµãµÄ×îĞÂÅÅÃû¡£ÒòÎªÔÚ¿ªÊ¼¹ÊÕÏ×ªÒÆÖ®Ç°£¬
+    ¿ÉÄÜ»áÊÕµ½ÆäËû´Ó½Úµã·¢À´µÄĞÄÌø°ü£¬Òò¶ø¿ÉÒÔ¸ù¾İĞÄÌø°üÖĞµÄ¸´ÖÆÆ«ÒÆÁ¿¸üĞÂ±¾½ÚµãµÄÅÅÃû£¬»ñµÃĞÂÅÅÃûnewrank£¬
+    Èç¹ûnewrank±ÈÖ®Ç°µÄÅÅÃû¿¿ºó£¬ÔòĞèÒªÔö¼Ó¹ÊÕÏ×ªÒÆ¿ªÊ¼Ê±¼äµÄÑÓ³Ù£¬È»ºó½«newrank¼ÇÂ¼µ½server.cluster->failover_auth_rankÖĞ£»
+    */
     if (server.cluster->failover_auth_sent == 0 &&
-        server.cluster->mf_end == 0)
+        server.cluster->mf_end == 0) //»¹Ã»ÓĞ½øĞĞ¹ı¹ÊÕÏ×¯Òã
     {
         int newrank = clusterGetSlaveRank();
         if (newrank > server.cluster->failover_auth_rank) {
@@ -3410,13 +3621,20 @@ void clusterHandleSlaveFailover(void) { //¶ÔCLUSTER_TODO_HANDLE_FAILOVER×´Ì¬µÄ´¦
 
     /* Return ASAP if we can't still start the election. */
      // Èç¹ûÖ´ĞĞ¹ÊÕÏ×ªÒÆµÄÊ±¼äÎ´µ½£¬ÏÈ·µ»Ø
-    if (mstime() < server.cluster->failover_auth_time) return;
+    if (mstime() < server.cluster->failover_auth_time) {
+        clusterLogCantFailover(REDIS_CLUSTER_CANT_FAILOVER_WAITING_DELAY);
+        return;
+    }
 
     /* Return ASAP if the election is too old to be valid. */
     // Èç¹û¾àÀëÓ¦¸ÃÖ´ĞĞ¹ÊÕÏ×ªÒÆµÄÊ±¼äÒÑ¾­¹ıÁËºÜ¾Ã   
     // ÄÇÃ´²»Ó¦¸ÃÔÙÖ´ĞĞ¹ÊÕÏ×ªÒÆÁË£¨ÒòÎª¿ÉÄÜÒÑ¾­Ã»ÓĞĞèÒªÁË£©
     // Ö±½Ó·µ»Ø
-    if (auth_age > auth_timeout) return;
+    if (auth_age > auth_timeout) {// Èç¹ûauth_age´óÓÚauth_timeout£¬ËµÃ÷Ö®Ç°µÄ¹ÊÕÏ×ªÒÆ³¬Ê±ÁË£¬Òò´ËÖ±½Ó·µ»Ø£»
+        clusterLogCantFailover(REDIS_CLUSTER_CANT_FAILOVER_EXPIRED);
+        return;
+    }
+    
 
     /* Ask for votes if needed. */
    // ÏòÆäËû½Úµã·¢ËÍ¹ÊÕÏ×ªÒÆÇëÇó

@@ -1002,7 +1002,7 @@ int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
  * 这个百分比由 REDIS_EXPIRELOOKUPS_TIME_PERC 定义。
  */
 /*
-过期键的定期删除策略由redis．c/activeExpireCycle函数实现，每当Redis的
+过期键的定期删除策略由redis.c/activeExpireCycle函数实现，每当Redis的
 服务器周期性操作redis．c/serverCron函数执行时，activeExpireCycle函数就会
 被调用，它在规定的时间内，分多次遍历服务器中的各个数据库，从数据库的expires字
 典中随机检查一部分键的过期时间，并删除其中的过期键。
@@ -1024,12 +1024,13 @@ void activeExpireCycle(int type) { //过期键的定期删除 //注意activeExpireCycle和f
         timelimit; //最多在该函数中消耗timelimit us时间
 
     // 快速模式
-    if (type == ACTIVE_EXPIRE_CYCLE_FAST) {
+    if (type == ACTIVE_EXPIRE_CYCLE_FAST) { 
+    //只有上次执行该函数是因为在该函数中耗时超过了指定时间，并且现在离上次执行该函数的时间超过2ms的时候才会启用fast模式
         /* Don't start a fast cycle if the previous cycle did not exited
          * for time limt. Also don't repeat a fast cycle for the same period
          * as the fast cycle total duration itself. */
         // 如果上次函数没有触发 timelimit_exit ，那么不执行处理
-        if (!timelimit_exit) return;
+        if (!timelimit_exit) return; //如果上次执行该函数不是因为执行该函数的时间超过指定时间引起的，则无效fast处理
         // 如果距离上次执行未够一定时间，那么不执行处理
         if (start < last_fast_cycle + ACTIVE_EXPIRE_CYCLE_FAST_DURATION*2) return;
         // 运行到这里，说明执行快速处理，记录当前时间
@@ -1059,7 +1060,7 @@ void activeExpireCycle(int type) { //过期键的定期删除 //注意activeExpireCycle和f
      * microseconds we can spend in this function. */
     // 函数处理的微秒时间上限
     // ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC 默认为 25 ，也即是 25 % 的 CPU 时间
-    timelimit = 1000000*ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC/server.hz/100;
+    timelimit = 1000000*ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC/server.hz/100; //25ms
     timelimit_exit = 0;
     if (timelimit <= 0) timelimit = 1;
 
@@ -1067,7 +1068,7 @@ void activeExpireCycle(int type) { //过期键的定期删除 //注意activeExpireCycle和f
     // 那么最多只能运行 FAST_DURATION 微秒 
     // 默认值为 1000 （微秒）
     if (type == ACTIVE_EXPIRE_CYCLE_FAST)
-        timelimit = ACTIVE_EXPIRE_CYCLE_FAST_DURATION; /* in microseconds. */
+        timelimit = ACTIVE_EXPIRE_CYCLE_FAST_DURATION; /* in microseconds. */ //1MS
 
     // 遍历数据库
     for (j = 0; j < dbs_per_call; j++) {
@@ -1122,7 +1123,7 @@ void activeExpireCycle(int type) { //过期键的定期删除 //注意activeExpireCycle和f
             ttl_samples = 0;
 
             // 每次最多只能检查 LOOKUPS_PER_LOOP 个键
-            if (num > ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP)
+            if (num > ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP) //20
                 num = ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP;
 
             // 开始遍历数据库
@@ -1181,8 +1182,8 @@ void activeExpireCycle(int type) { //过期键的定期删除 //注意activeExpireCycle和f
 
             /* We don't repeat the cycle if there are less than 25% of keys
              * found expired in the current DB. */
-            // 如果已删除的过期键占当前总数据库带过期时间的键数量的 25 %
-            // 那么不再遍历
+            // 如果已删除的过期键占当前总数据库带过期时间的键数量的 25 %，
+            //那么继续遍历，直到在该函数中执行时间超过25ms(fast模式1ms，普通模式25ms)或者本次随机挑选出的20个KV中，过期的小于5个，则退出该函数
         } while (expired > ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP/4); //一次最多删除5个
     }
 }
@@ -2854,7 +2855,7 @@ int processCommand(redisClient *c) {
           server.aof_last_write_status == REDIS_ERR) &&
         server.masterhost == NULL &&
         (c->cmd->flags & REDIS_CMD_WRITE ||
-         c->cmd->proc == pingCommand)) //如果rdb aof失败，则任何命令都失效，不过可以通过设置//CONFIG SET SAVE ""表示禁用rdb功能把该失败禁止掉
+         c->cmd->proc == pingCommand)) {//如果rdb aof失败，则任何命令都失效，不过可以通过设置//CONFIG SET SAVE ""表示禁用rdb功能把该失败禁止掉
         flagTransaction(c);
         if (server.aof_last_write_status == REDIS_OK)
             addReply(c, shared.bgsaveerr);

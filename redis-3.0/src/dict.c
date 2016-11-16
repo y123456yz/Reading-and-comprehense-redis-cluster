@@ -1089,12 +1089,12 @@ dictEntry *dictGetRandomKey(dict *d)
     listlen = 0;
     orighe = he;
     // 计算节点数量, T = O(1)
-    while(he) {
+    while(he) { //遍历整个桶，计算这个捅里面的KV数
         he = he->next;
         listlen++;
     }
     // 取模，得出随机节点的索引
-    listele = random() % listlen;
+    listele = random() % listlen; //从具体桶里面随机取出一个KV节点
     he = orighe;
     // 按索引查找节点
     // T = O(1)

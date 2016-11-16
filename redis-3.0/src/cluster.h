@@ -138,7 +138,7 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 //如果发送PING后，等待pong时间超时，则会在clusterCron中置为该状态，或者是在redis重启的时候从nodes.conf中读取
 //clusterProcessGossipSection->clusterNodeAddFailureReport把接收的fail或者pfail添加到本地fail_reports
 //如果某个节点掉了，clusterSendPing通过发送PING消息携带出去的，这样其他节点在clusterProcessGossipSection收到后就知道了
-//只有发送MEET(携带节点pfail或者fail)的sender为master的时候，接收到才会做处理，见clusterProcessGossipSection
+//只有发送MEET(携带节点pfail或者fail)的sender为master的时候，接收者接受到该MEET才会做把pfail转为fail并更新集群状态，见clusterProcessGossipSection
 
 // 该节点疑似下线，需要对它的状态进行确认
 #define REDIS_NODE_PFAIL 4      /* Failure? Need acknowledge */ //如果一个主节点掉线，则其他主节点通过ping--PONG交互来判断该节点是否掉线了
@@ -180,6 +180,16 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 #define nodeWithoutAddr(n) ((n)->flags & REDIS_NODE_NOADDR)
 #define nodeTimedOut(n) ((n)->flags & REDIS_NODE_PFAIL)
 #define nodeFailed(n) ((n)->flags & REDIS_NODE_FAIL)
+
+
+/* Reasons why a slave is not able to failover. */
+#define REDIS_CLUSTER_CANT_FAILOVER_NONE 0
+#define REDIS_CLUSTER_CANT_FAILOVER_DATA_AGE 1
+#define REDIS_CLUSTER_CANT_FAILOVER_WAITING_DELAY 2
+#define REDIS_CLUSTER_CANT_FAILOVER_EXPIRED 3
+#define REDIS_CLUSTER_CANT_FAILOVER_WAITING_VOTES 4
+#define REDIS_CLUSTER_CANT_FAILOVER_RELOG_PERIOD (60*5) /* seconds. */
+
 
 /* This structure represent elements of node->fail_reports. */
 // 每个 clusterNodeFailReport 结构保存了一条其他节点对目标节点的下线报告
@@ -270,8 +280,11 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     // 指针数组，指向各个从节点
     struct clusterNode **slaves; /* pointers to slave nodes */
 
-    // 如果这是一个从节点，那么指向主节点
-    struct clusterNode *slaveof; /* pointer to the master node */
+    // 如果这是一个从节点，那么指向主节点  
+    //如果是非集群模式，则通过slave of ip:port可以设置，如果是集群模式，则可以通过CLUSTER REPLICATE node 来设置
+    //或者从nodes.conf中获取， 也可以通过集群节点MEET PING PONG等交互来获取，见clusterProcessPacket   
+    //如果主备切换，则备变为主的时候，在clusterHandleSlaveFailover->clusterSetNodeAsMaster中备节点选举完毕后置slaveof=NULL
+    struct clusterNode *slaveof; /* pointer to the master node */ //注意ClusterNode.slaveof与clusterMsg.slaveof的关联
 
     //向该node节点最后一次发送ping消息的时间       
     //本端ping对端，对端pong应答后会把该ping_sent置0，见clusterProcessPacket
@@ -284,13 +297,13 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     // 最后一次被设置为 FAIL 状态的时间
     mstime_t fail_time;      /* Unix time when FAIL flag was set */
 
-    // 最后一次给某个从节点投票的时间
+    // 最后一次给某个从节点投票的时间，见clusterSendFailoverAuthIfNeeded
     mstime_t voted_time;     /* Last time we voted for a slave of this master */
 
     // 最后一次从这个节点接收到复制偏移量的时间
     mstime_t repl_offset_time;  /* Unix time we received offset for this node */
 
-    // 这个节点的复制偏移量
+    // 这个节点的复制偏移量  从节点的repl_offset是根据节点之间交互报文的时候通过报文头部携带过来的clusterMsg
     long long repl_offset;      /* Last known repl offset for this node. */
 
     // 节点的 IP 地址
@@ -364,7 +377,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     会不同，如果没有配置set-config-epoch的话，各个节点的clusterNode.configEpoch分别为0 - n,例如3个节点，则每个节点分别对应
     0 1 2，可以通过cluster node中connected前的数值查看
     */ //currentEpoch可以通过cluster info命令中的cluster_current_epoch获取到   configEpoch可以通过cluster node中connected前的数值查看
-    uint64_t currentEpoch; //在clusterHandleConfigEpochCollision中会自增
+    uint64_t currentEpoch; //在clusterHandleConfigEpochCollision中会自增   slave要求其他master进行投票的时候，也会在clusterHandleSlaveFailover自增
 
     // 集群当前的状态：是在线还是下线    在clusterUpdateState中更新集群状态
     int state;            /* REDIS_CLUSTER_OK, REDIS_CLUSTER_FAIL, ... */
@@ -415,6 +428,15 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     /* The following fields are used to take the slave state on elections. */
     // 以下这些域被用于进行故障转移选举
 
+    
+    /*
+    从节点在发现其主节点下线时，并不是立即发起故障转移流程，而是要等待一段时间，在未来的某个时间点才发起选举:
+    mstime() + 500ms + random()%500ms + rank*1000ms 固定延时500ms，是为了留出时间，使主节点下线的消息能传播到
+    集群中其他节点，这样集群中的主节点才有可能投票；随机延时是为了避免两个从节点同时开始故障转移流程
+
+    failover_auth_time属性，表示从节点可以开始进行故障转移的时间。集群初始化时该属性置为0，一旦满足开始
+    故障转移的条件后，该属性就置为未来的某个时间点，在该时间点，从节点才开始进行拉票。
+    */
     // 上次执行选举或者下次执行选举的时间
     mstime_t failover_auth_time; /* Time of previous or next election. */
 
@@ -424,9 +446,15 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     // 如果值为 1 ，表示本节点已经向其他节点发送了投票请求
     int failover_auth_sent;     /* True if we already asked for votes. */
 
-    int failover_auth_rank;     /* This slave rank for current auth request. */
+     /*
+    rank表示从节点的排名，排名是指当前从节点在下线主节点的所有从节点中的排名，排名主要是根据复制数据量来定，
+    复制数据量越多，排名越靠前，因此，具有较多复制数据量的从节点可以更早发起故障转移流程，从而更可能成为新的主节点。*/
+    //如果本节点是slave节点，在ClusterCron中会实时更新本slave的rank，见clusterGetSlaveRank
+    int failover_auth_rank;     /* This slave rank for current auth request. */ 
 
     uint64_t failover_auth_epoch; /* Epoch of the current election. */
+    int cant_failover_reason;   /* Why a slave is currently not able to
+                                   failover. See the CANT_FAILOVER_* macros. */
 
     /* Manual failover state in common. */
     /* 共用的手动故障转移状态 */
@@ -449,7 +477,11 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     /* The followign fields are uesd by masters to take state on elections. */
     /* 以下这些域由主服务器使用，用于记录选举时的状态 */
 
-    // 集群最后一次进行投票的纪元
+    
+    //备节点要求本节点进行投票的时候，如果本master节点投给了某个slave节点，则更新该值，见clusterSendFailoverAuthIfNeeded
+    //如果server.cluster->lastVoteEpoch == server.cluster->currentEpoch表示已经把票投给某个slave了
+
+    // 集群最后一次进行投票的纪元  
     uint64_t lastVoteEpoch;     /* Epoch of the last vote granted. */
 
     // 在进入下个事件循环之前要做的事情，以各个 flag 来记录   clusterDoBeforeSleep中赋值
@@ -521,9 +553,10 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
 #define CLUSTERMSG_TYPE_FAIL 3          /* Mark node xxx as failing */
 // 通过发布与订阅功能广播消息
 #define CLUSTERMSG_TYPE_PUBLISH 4       /* Pub/Sub Publish propagation */
-// 请求进行故障转移操作，要求消息的接收者通过投票来支持消息的发送者
-#define CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST 5 /* May I failover? */
-// 消息的接收者同意向消息的发送者投票
+// 请求进行故障转移操作，要求消息的接收者通过投票来支持消息的发送者  从节点通过clusterRequestFailoverAuth发送failover request，但是只有master才会回复
+// 必须由slave发起
+#define CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST 5 /* May I failover? */ //CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST和CLUSTERMSG_TYPE_FAILOVER_AUTH_ACK对应
+// 消息的接收者同意向消息的发送者投票 
 #define CLUSTERMSG_TYPE_FAILOVER_AUTH_ACK 6     /* Yes, you have my vote */
 // 槽布局已经发生变化，消息发送者要求消息接收者进行相应的更新    通过clusterBuildMessageHdr组包发送
 #define CLUSTERMSG_TYPE_UPDATE 7        /* Another node slots configuration */
@@ -683,7 +716,7 @@ typedef struct { //内部通信直接通过该结构发送，解析该结构在clusterProcessPacket
     // 如果消息发送者是一个从节点，那么这里记录的是消息发送者正在复制的主节点的名字
     // 如果消息发送者是一个主节点，那么这里记录的是 REDIS_NODE_NULL_NAME
     // （一个 40 字节长，值全为 0 的字节数组）
-    char slaveof[REDIS_CLUSTER_NAMELEN];
+    char slaveof[REDIS_CLUSTER_NAMELEN]; ////注意clusterNode.slaveof与clusterMsg.slaveof的关联
 
     char notused1[32];  /* 32 bytes reserved for future usage. */
 

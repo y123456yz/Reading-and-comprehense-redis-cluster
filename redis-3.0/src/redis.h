@@ -572,7 +572,7 @@ EXECÃüÁî±ØÈ»»áÖ´ĞĞÊ§°Ü¡£ÕâÁ½¸ö±êÖ¾Ö»ÄÜÔÚ¿Í»§¶Ë´ò¿ªÁËREDIS_MULTI±êÖ¾µÄÇé¿öÏÂÊ¹ÓÃ¡
 #define REDIS_REPL_CONNECTING 2 /* Connecting to master */ //¼ûconnectWithMaster
 #define REDIS_REPL_RECEIVE_PONG 3 /* Wait for PING reply */ //´Ó·şÎñÆ÷Á¬½ÓÖ÷·şÎñÆ÷³É¹¦ºó·¢ËÍping×Ö·û´®¸øÖ÷·şÎñÆ÷£¬È»ºó½øÈë¸Ã×´Ì¬£¬±íÊ¾µÈ´ıÖ÷·şÎñÆ÷Ó¦´ğPONG
 #define REDIS_REPL_TRANSFER 4 /* Receiving .rdb from master */
-#define REDIS_REPL_CONNECTED 5 /* Connected to master */ //ÒÑÁ¬½Ó×´Ì¬
+#define REDIS_REPL_CONNECTED 5 /* Connected to master */ //ÒÑÁ¬½Ó×´Ì¬£¬Ö÷±¸synÍê³É£¬Ôò½øÈë¸Ã×´Ì¬
 
 /* Slave replication state - from the point of view of the master.
  * In SEND_BULK and ONLINE state the slave receives new updates

@@ -191,6 +191,7 @@ typedef struct sentinelRedisInstance { //该结构节点存在于sentinelState->master字
     char *runid;    /* run ID of this instance. */
 
     // 配置纪元，用于实现故障转移 /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
+    //真正生效的地方在clusterSendFailoverAuthIfNeeded，在该函数中进行判断
     uint64_t config_epoch;  /* Configuration epoch. */
 
     // 实例的地址

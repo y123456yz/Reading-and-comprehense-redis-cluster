@@ -1830,7 +1830,7 @@ void replicationSetMaster(char *ip, int port) { //真正的slaveof ip port,向这个地
 
 /* Cancel replication, setting the instance as a master itself. */
 // 取消复制，将服务器设置为主服务器
-void replicationUnsetMaster(void) {
+void replicationUnsetMaster(void) { //cluster reset xxx 或者slave of，以及slave到master切换都会调用该函数
 
     if (server.masterhost == NULL) return; /* Nothing to do. */
 

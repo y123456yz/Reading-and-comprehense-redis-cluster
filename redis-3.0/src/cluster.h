@@ -121,9 +121,8 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
     
    //A MEET B,A建立连接向B，这时候A节点上记录的clusterNode和link是关联的，但是B接受连接后建立了link，这时候该link的node成员为NULL
    //紧接着B向A发起连接，B上记录的A节点的clusterNode和link是关联的，但是A接受连接后建立的link的node成员为NULL
-   //也就是只有主动发起连接的时候建立的link，起clusterLink.node成员指向对端的clusterNode，被动接受连接的一端建立的clusterLink,它的node成员一直为NULL
-    struct clusterNode *node;   /* Node related to this link if any, or NULL */ //赋值见createClusterLink
-
+   //也就是只有主动发起连接的时候建立的link，其clusterLink.node成员指向对端的clusterNode，被动接受连接的一端建立的clusterLink,它的node成员一直为NULL
+   struct clusterNode *node;   /* Node related to this link if any, or NULL */ //赋值见createClusterLink
 } clusterLink;
 
 /*  REDIS_NODE_PFAIL等节点标识通过ping消息(消息头部type=CLUSTERMSG_TYPE_PING)发送给其他节点，然后其他节点把这个标记赋值给clusterNode.flag */
@@ -157,7 +156,7 @@ typedef struct clusterLink { //clusterNode->link     集群数据交互接收的地方在clu
 // 该节点还未与当前节点完成第一次 PING - PONG 通讯   只有接受到某个node的ping pong meet则会清除该状态，见clusterProcessPacket
 //在A上敲cluster meet B的时候，A想B发送MEET,B收到后，会创建A的clusterNode，同时把A节点状态置为NO-HANDSHARKE状态，见clusterProcessPacket
 
-//
+//一般在创建新的节点node的时候，都是该状态，见createClusterNode    只要接收到一次对端的PING PONG或者MEET报文，则会清除该状态，表示对端已经和本端有联系了
 #define REDIS_NODE_HANDSHAKE 32 /* We have still to exchange the first ping */
 // 该节点没有地址  clusterProcessPacket值置为该状态，或者从配置文件node.conf中读到的就是该状态
 #define REDIS_NODE_NOADDR   64  /* We don't know the address of this node */
@@ -218,7 +217,8 @@ struct clusterNodeFailReport { //该结构存储在clusterNode->fail_reports中
 
 
 //server.cluster(clusterState)->clusterState.nodes(clusterNode)->clusterNode.link(clusterLink)
-// 节点状态    节点创建在createClusterNode
+// 节点状态    节点创建在createClusterNode,只有主动发起连接的一端在clusterStartHandshake会创建，被动接受连接的一端在接收到MEET或者PING的时候如果发现本地没有改连接也会创建对端的node
+//node都是在主动发起MEET的一端创建节点，或者被动接收端发现本端没有该sender信息则创建，见createClusterNode  
 struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterProcessPacket
 
     // 创建节点的时间
@@ -226,8 +226,9 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
 
     // 节点的名字，由 40 个十六进制字符组成   见createClusterNode->getRandomHexChars
     // 例如 68eef66df23420a5862208ef5b1a7005b806f2ff
-    char name[REDIS_CLUSTER_NAMELEN]; /* Node name, hex string, sha1-size */
-
+    
+    //A meet B,A本地会创建A的name，B收到后也会创建一个A-node，他们名字是不一样的，通过相互PING PONG通信来保持一致，见clusterRenameNode
+    char name[REDIS_CLUSTER_NAMELEN]; /* Node name, hex string, sha1-size */ 
     /* REDIS_NODE_PFAIL等节点标识通过ping消息(消息头部type=CLUSTERMSG_TYPE_PING)发送给其他节点，然后其他节点把这个标记赋值给clusterNode.flag */
     // 节点标识
     // 使用各种不同的标识值记录节点的角色（比如主节点或者从节点），
@@ -257,7 +258,7 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     每个master的configEpoch必须不同，当发生配置冲突以后，采用高版本的配置。通过多次交互后，集群中每个节点的configEpoch
     会不同，如果没有配置set-config-epoch的话，各个节点的clusterNode.configEpoch分别为0 - n,例如3个节点，则每个节点分别对应
     0 1 2，可以通过cluster node中connected前的数值查看
-    */ //赋值见clusterHandleConfigEpochCollision
+    */ //赋值见clusterHandleConfigEpochCollision  clusterProcessPacket clusterHandleSlaveFailover,真正生效的地方在clusterSendFailoverAuthIfNeeded，在该函数中进行判断
     uint64_t configEpoch; /* Last configEpoch observed for this node */
 
     // 由这个节点负责处理的槽
@@ -328,7 +329,7 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     link4      <----         clusterNode-A(link3) (该link不属于任何clusterNode)  (B收到meet后，再下一个clusterCron中向A发起连接)     步骤2
     */ 
 //clusterCron如果节点的link为NULL，则需要进行重连，在freeClusterLink中如果和集群中某个节点异常挂掉，则本节点通过读写事件而感知到，然后在freeClusterLink置为NULL
-    clusterLink *link;          /* TCP/IP link with this node */ //还有个赋值的地方在clusterCron
+    clusterLink *link;          /* TCP/IP link with this node */ //还有个赋值的地方在clusterCron,当主动和对端建立连接的时候赋值
 
     // 一个链表，记录了所有其他节点对该节点的下线报告
     //例如主节点A通过消息得知主节点B认为主节点C进入了疑似下线状态时，主节点A会在自己的clusterState.nodes
@@ -353,7 +354,6 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     // 指向当前节点的指针
     clusterNode *myself;  /* This node */
 
-    /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     // 集群当前的配置纪元，用于实现故障转移   这个也就是集群中所有节点中最大currentEpoch 
 
     //实际上各个节点自己的configEpoch通过报文交互，在clusterHandleConfigEpochCollision中进行设置，
@@ -375,10 +375,14 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     
     每个master的configEpoch必须不同，当发生配置冲突以后，采用高版本的配置。通过多次交互后，集群中每个节点的configEpoch
     会不同，如果没有配置set-config-epoch的话，各个节点的clusterNode.configEpoch分别为0 - n,例如3个节点，则每个节点分别对应
-    0 1 2，可以通过cluster node中connected前的数值查看
+    0 1 2，可以通过cluster node中connected前的数值查看  
+    目前currentEpoch只用于从节点的故障转移流程  详见http://blog.csdn.net/gqtcgq/article/details/51830428  这里解释很好
     */ //currentEpoch可以通过cluster info命令中的cluster_current_epoch获取到   configEpoch可以通过cluster node中connected前的数值查看
-    uint64_t currentEpoch; //在clusterHandleConfigEpochCollision中会自增   slave要求其他master进行投票的时候，也会在clusterHandleSlaveFailover自增
-
+    
+    //在clusterHandleConfigEpochCollision中会自增，也可以在clusterProcessPacket更新    
+    //slave要求其他master进行投票的时候，也会在clusterHandleSlaveFailover自增
+    uint64_t currentEpoch; 
+    
     // 集群当前的状态：是在线还是下线    在clusterUpdateState中更新集群状态
     int state;            /* REDIS_CLUSTER_OK, REDIS_CLUSTER_FAIL, ... */
 
@@ -440,7 +444,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     // 上次执行选举或者下次执行选举的时间
     mstime_t failover_auth_time; /* Time of previous or next election. */
 
-    // 节点获得的投票数量
+    // 节点获得的投票数量  本slave接收到其他master的CLUSTERMSG_TYPE_FAILOVER_AUTH_ACK消息后，failover_auth_count++，见clusterProcessPacket
     int failover_auth_count;    /* Number of votes received so far. */
 
     // 如果值为 1 ，表示本节点已经向其他节点发送了投票请求
@@ -448,11 +452,13 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
 
      /*
     rank表示从节点的排名，排名是指当前从节点在下线主节点的所有从节点中的排名，排名主要是根据复制数据量来定，
-    复制数据量越多，排名越靠前，因此，具有较多复制数据量的从节点可以更早发起故障转移流程，从而更可能成为新的主节点。*/
+    复制数据量越多，排名越靠前，因此，具有较多复制数据量的从节点可以更早发起故障转移流程clusterRequestFailoverAuth，从而更可能成为新的主节点。*/
     //如果本节点是slave节点，在ClusterCron中会实时更新本slave的rank，见clusterGetSlaveRank
     int failover_auth_rank;     /* This slave rank for current auth request. */ 
 
+    //slave每进行一次auth req要求master投票，都会加1，见clusterHandleSlaveFailover
     uint64_t failover_auth_epoch; /* Epoch of the current election. */
+    //如果reason没有发生变化，则不会打印，见clusterLogCantFailover
     int cant_failover_reason;   /* Why a slave is currently not able to
                                    failover. See the CANT_FAILOVER_* macros. */
 
@@ -626,6 +632,7 @@ typedef struct {
 typedef struct {
 
     // 节点的配置纪元  /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
+    //真正生效的地方在clusterSendFailoverAuthIfNeeded，在该函数中进行判断
     uint64_t configEpoch; /* Config epoch of the specified instance. */
 
     // 节点的名字
@@ -689,14 +696,17 @@ typedef struct { //内部通信直接通过该结构发送，解析该结构在clusterProcessPacket
     // 只在发送 MEET 、 PING 和 PONG 这三种 Gossip 协议消息时使用
     uint16_t count;     /* Only used for some kind of messages. */ //代表携带的消息体个数，可以参考clusterSendPing
 
+    //目前currentEpoch只用于从节点的故障转移流程  详见http://blog.csdn.net/gqtcgq/article/details/51830428
     //赋值来自于server.cluster->currentEpoch，见clusterBuildMessageHdr  
-    // 消息发送者的配置纪元   也就是当前节点所在集群的版本号  /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
+    // 消息发送者的配置纪元   也就是当前节点所在集群的版本号  
+    //目前currentEpoch只用于从节点的故障转移流程  详见http://blog.csdn.net/gqtcgq/article/details/51830428  这里解释很好
     uint64_t currentEpoch;  /* The epoch accordingly to the sending node. */
 
     // 如果消息发送者是一个主节点，那么这里记录的是消息发送者的配置纪元
     // 如果消息发送者是一个从节点，那么这里记录的是消息发送者正在复制的主节点的配置纪元 
     /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     //见clusterBuildMessageHdr，当前节点的Epoch，每个节点自己的Epoch不一样，可以参考clusterNode->configEpoch
+    //真正生效的地方在clusterSendFailoverAuthIfNeeded，在该函数中进行判断
     uint64_t configEpoch;   /* The config epoch if it's a master, or the last
                                epoch advertised by its master if it is a
                                slave. */
@@ -707,7 +717,7 @@ typedef struct { //内部通信直接通过该结构发送，解析该结构在clusterProcessPacket
 
     /* currentEpoch、sender、myslots等属性记录了发送者自身的节点信息，接牧者会根据这些信息，在自己的clusterState．nodes字典里找到发送
 者对应的clusterNode结构，并对结构进行更新。 */
-    // 消息发送者的名字（ID）
+    // 消息发送者的名字（ID）  更新见clusterRenameNode  A meet B,A本地会创建A的name，B收到后也会创建一个A-node，他们名字是不一样的，通过相互PING PONG通信来保持一致，见clusterRenameNode
     char sender[REDIS_CLUSTER_NAMELEN]; /* Name of the sender node */
 
     // 消息发送者目前的槽指派信息

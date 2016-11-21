@@ -1451,7 +1451,7 @@ struct redisServer {//struct redisServer server;
     list *clients_to_close;     /* Clients to close asynchronously */
 
     // 链表，保存了所有从服务器，
-    list *slaves, 
+    list *slaves,  //注意有可能从服务器下面还会挂接从服务器
     //保存了所有连接该服务器并且执行了monitor的的客户端
     //服务器在每次处理命令请求乏前，都会调用replicationFeedMonitors函数，由这个函数将被处理的命令请求的相关信息发送给各个监视器。
     *monitors;    /* List of slaves and MONITORs */
@@ -1806,7 +1806,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     //slaveof 10.2.2.2 1234 中的masterhost=10.2.2.2 masterport=1234  赋值见replicationSetMaster  建立连接在replicationCron
     // 主服务器的地址  如果这个部位空，则说明该参数指定的是该服务器对应的主服务器，也就是本服务器是从服务器
 
-    //当从服务器执行slave no on，本服务器不在从属于某个主服务器了，replicationUnsetMaster中会把masterhost置为NULL
+    //当从服务器执行slave no on，本服务器不在从属于某个主服务器了或者slave重新被选举为master的时候，replicationUnsetMaster中会把masterhost置为NULL
     char *masterhost;               /* Hostname of master */ //赋值见replicationSetMaster  建立连接在replicationCron
     // 主服务器的端口 //slaveof 10.2.2.2 1234 中的masterhost=10.2.2.2 masterport=1234
     int masterport;                 /* Port of master */ //赋值见replicationSetMaster  建立连接在replicationCron
@@ -1834,6 +1834,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
 
     //当本节点是从节点的时候，就创建一个redisClient节点用来专门同步主节点发往本节点的实时KV对给本从服务器  
     //例如从服务器连接到本主服务器，客户端更新了KV，这个更新操作就通过该redisClient来和主服务器通信
+    //replicationHandleMasterDisconnection中置为NULL
     redisClient *master;     /* Client that is master for this slave */ //如果备和主连接端口，则备会把该master记录到cached_master中，见replicationCacheMaster
     // 被缓存的主服务器，PSYNC 时使用  
 //例如从服务器之前和主服务器连接上，并同步了数据，中途端了，则连接断了后会在replicationCacheMaster把server.cached_master = server.master;表示之前有连接到过服务器

@@ -872,7 +872,8 @@ void disconnectSlaves(void) {
 /* This function is called when the slave lose the connection with the
  * master into an unexpected way. */
 // 这个函数在从服务器以外地和主服务器失去联系时调用
-void replicationHandleMasterDisconnection(void) { //从服务器和主服务器连接端口，从服务器做的处理
+void replicationHandleMasterDisconnection(void) { 
+//从服务器和主服务器连接断开，从服务器做的处理是:有可能该从服务器下面还有从服务器，则把该从服务器下面的所有从服务器连接断开
     server.master = NULL;
     server.repl_state = REDIS_REPL_CONNECT;
     server.repl_down_since = server.unixtime;
@@ -888,7 +889,7 @@ void replicationHandleMasterDisconnection(void) { //从服务器和主服务器连接端口，
      * 如果 masterhost 不存在（怎么会这样呢？）
      * 那么调用 SLAVEOF NO ONE ，避免 slave resync
      */
-    if (server.masterhost != NULL) disconnectSlaves();
+    if (server.masterhost != NULL) disconnectSlaves(); //
 }
 
 /*
@@ -929,6 +930,7 @@ void replicationHandleMasterDisconnection(void) { //从服务器和主服务器连接端口，
 /*
  * 释放客户端
  */ //创建TCP连接在acceptTcpHandler，关闭连接并释放资源见freeClient
+ /* 释放freeClient，要分为Master和Slave2种情况作不同的处理 */
 void freeClient(redisClient *c, const char *func, unsigned int line) {
     listNode *ln;
 
@@ -941,13 +943,15 @@ void freeClient(redisClient *c, const char *func, unsigned int line) {
      *
      * Note that before doing this we make sure that the client is not in
      * some unexpected state, by checking its flags. */
-    if (server.master && c->flags & REDIS_MASTER) {
+     //如果是slave变为master通过replicationDiscardCachedMaster走到这里，这时候server.master=null，因为要先走下面if分支，replicationCacheMaster里面会置它为NULL
+     //如果备感知到主掉线了，则里面走这个分支，当备被选举为主后，会通过replicationDiscardCachedMaster走到if后面的分支
+    if (server.master && c->flags & REDIS_MASTER) { //
         redisLog(REDIS_WARNING,"Connection with master lost.");
         if (!(c->flags & (REDIS_CLOSE_AFTER_REPLY|
                           REDIS_CLOSE_ASAP|
                           REDIS_BLOCKED|
-                          REDIS_UNBLOCKED)))
-        {
+                          REDIS_UNBLOCKED))) 
+        { //如果是Master客户端，需要做缓存Client的处理，可以迅速重新启用恢复，不用整体从头建立连接
             replicationCacheMaster(c);
             return;
         }

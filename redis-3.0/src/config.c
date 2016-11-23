@@ -633,7 +633,7 @@ void loadServerConfig(char *filename, char *options) {
  * CONFIG SET implementation
  *----------------------------------------------------------------------------*/
 
-void configSetCommand(redisClient *c) {
+void 7xxxxxxxxxxxxxxxxxxxxxxxxxxx4503093(redisClient *c) {
     robj *o;
     long long ll;
     redisAssertWithInfo(c,c->argv[2],sdsEncodedObject(c->argv[2]));

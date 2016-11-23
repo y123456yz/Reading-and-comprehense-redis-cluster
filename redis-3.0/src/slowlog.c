@@ -175,7 +175,7 @@ void slowlogPushEntryIfNeeded(robj **argv, int argc, long long duration) {
     // 如果执行时间超过服务器设置的上限，那么将命令添加到慢查询日志
     if (duration >= server.slowlog_log_slower_than)
         // 新日志添加到链表表头
-        listAddNodeHead(server.slowlog,slowlogCreateEntry(argv,argc,duration));
+        listAddNodeHead(server.slowlog,slowlogCreateEntry(argv,argc,duration)); //注意slowlog最多纪录32个参数，见slowlogCreateEntry
 
     /* Remove old entries if needed. */
     // 如果日志数量过多，那么进行删除

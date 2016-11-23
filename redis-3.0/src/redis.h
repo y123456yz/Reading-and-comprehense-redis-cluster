@@ -984,7 +984,7 @@ typedef struct redisClient {   //redisServer与redisClient对应
 命令参数的个数分别保存到客户端状态的argv属性和argc属性：例如客户端命令是:set yang xxx，则argc=3,argv[0]为set，argv[1]为yang argv[2]为xxx
      */
     // 参数数量
-    int argc;   //客户端命令解析见processMultibulkBuffer
+    int argc;   //客户端命令解析见processMultibulkBuffer   //注意slowlog最多纪录32个参数，见slowlogCreateEntry
 
     /*
     首先命令行中的字符串先保存到进入xxxCommand(如setCommand)函数时，各个命令字符串单纯已经转换为redisObject保存到redisClient->argv[]中，

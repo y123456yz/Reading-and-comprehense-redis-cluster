@@ -1060,7 +1060,7 @@ void activeExpireCycle(int type) { //过期键的定期删除 //注意activeExpireCycle和f
      * microseconds we can spend in this function. */
     // 函数处理的微秒时间上限
     // ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC 默认为 25 ，也即是 25 % 的 CPU 时间
-    timelimit = 1000000*ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC/server.hz/100; //25ms
+    timelimit = 1000000*ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC/server.hz/100; //25ms  25000us
     timelimit_exit = 0;
     if (timelimit <= 0) timelimit = 1;
 
@@ -1184,7 +1184,7 @@ void activeExpireCycle(int type) { //过期键的定期删除 //注意activeExpireCycle和f
              * found expired in the current DB. */
             // 如果已删除的过期键占当前总数据库带过期时间的键数量的 25 %，
             //那么继续遍历，直到在该函数中执行时间超过25ms(fast模式1ms，普通模式25ms)或者本次随机挑选出的20个KV中，过期的小于5个，则退出该函数
-        } while (expired > ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP/4); //一次最多删除5个
+        } while (expired > ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP/4); //随机抽取20个K，如果发现至少有5个KEY过期了，则继续进行过期抽样删除
     }
 }
 

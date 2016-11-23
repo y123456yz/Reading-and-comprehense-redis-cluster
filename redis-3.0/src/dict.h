@@ -407,10 +407,13 @@ typedef void (dictScanFunction)(void *privdata, const dictEntry *de);
 #define dictSetUnsignedIntegerVal(entry, _val_) \
     do { entry->v.u64 = _val_; } while(0)
 
+//dictType主要由xxxDictType(dbDictType zsetDictType setDictType等)
 // 释放给定字典节点的键
 #define dictFreeKey(d, entry) \
     if ((d)->type->keyDestructor) \
         (d)->type->keyDestructor((d)->privdata, (entry)->key)
+
+//dictType主要由xxxDictType(dbDictType zsetDictType setDictType等)
 
 // 设置给定字典节点的键
 #define dictSetKey(d, entry, _key_) do { \
@@ -419,6 +422,8 @@ typedef void (dictScanFunction)(void *privdata, const dictEntry *de);
     else \
         entry->key = (_key_); \
 } while(0)
+
+//dictType主要由xxxDictType(dbDictType zsetDictType setDictType等)
 
 // 比对两个键
 #define dictCompareKeys(d, key1, key2) \

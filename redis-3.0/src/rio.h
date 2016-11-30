@@ -54,12 +54,12 @@ struct _rio {
      * designed so that can be called with the current checksum, and the buf
      * and len fields pointing to the new block of data to add to the checksum
      * computation. */
-    // 校验和计算函数，每次有写入/读取新数据时都要计算一次
+    // 校验和计算函数，每次有写入/读取新数据时都要计算一次  rioRead中执行，赋值为rdbLoadProgressCallback
     void (*update_cksum)(struct _rio *, const void *buf, size_t len);
 
     /* The current checksum */
     // 当前校验和
-    uint64_t cksum;
+    uint64_t cksum; //每次从rdb中读取一条KV，然后调用rdbLoadProgressCallback进行校验码计算，然后在rdbLoad比较是否校验码相同
 
     /* number of bytes read or written */
     size_t processed_bytes;
@@ -79,7 +79,7 @@ struct _rio {
 
         struct {
             // 被打开文件的指针
-            FILE *fp;
+            FILE *fp; //赋值见rioInitWithFile
             // 最近一次 fsync() 以来，写入的字节量
             off_t buffered; /* Bytes written since last fsync. */
             // 写入多少字节之后，才会自动执行一次 fsync()
@@ -88,7 +88,7 @@ struct _rio {
     } io;
 };
 
-typedef struct _rio rio;
+typedef struct _rio rio; //初始化为rioFileIO
 
 /* The following functions are our interface with the stream. They'll call the
  * actual implementation of read / write / tell, and will update the checksum

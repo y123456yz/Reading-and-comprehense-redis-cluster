@@ -940,7 +940,7 @@ int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
         robj *keyobj = createStringObject(key,sdslen(key));
 
         // 传播过期命令
-        propagateExpire(db,keyobj);
+        propagateExpire(db,keyobj); //主过期需要出发从过期，
         // 从数据库中删除该键
         dbDelete(db,keyobj);
         // 发送事件
@@ -1009,6 +1009,9 @@ int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
 */ //随机取过期字典hash中的节点，然后进行超时判断删除，退出条件是，该函数最多执行多少时间，或者已经删除了最大限度个过期键则退出
 //注意activeExpireCycle(定期删除)和freeMemoryIfNeeded(如果配置了最大内存，则会进行内存检查)  expireIfNeeded(被动惰性删除，由对该键操作的时候进行判断是否超时)的区别
 void activeExpireCycle(int type) { //过期键的定期删除 //注意activeExpireCycle和freeMemoryIfNeeded  expireIfNeeded的区别
+    //只有master才会做定时过期清理操作，从是不会做定时过期清理的，slave是依靠主过期后发送del命令给从来进行过期，见activeExpireCycleTryExpire->propagateExpire
+
+    
     /* This function has some global state in order to continue the work
      * incrementally across calls. */
     // 静态变量，用来累积函数连续执行时的数据
@@ -1391,7 +1394,7 @@ void databasesCron(void) {
     /* Expire keys by random sampling. Not required for slaves
      * as master will synthesize DELs for us. */
     // 如果服务器不是从服务器，那么执行主动过期键清除
-    if (server.active_expire_enabled && server.masterhost == NULL)
+    if (server.active_expire_enabled && server.masterhost == NULL) //只有master才做定时过期清理动作
         // 清除模式为 CYCLE_SLOW ，这个模式会尽量多清除过期键
         activeExpireCycle(ACTIVE_EXPIRE_CYCLE_SLOW);
 
@@ -1760,7 +1763,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Run a fast expire cycle (the called function will return
      * ASAP if a fast cycle is not needed). */
     // 执行一次快速的主动过期检查
-    if (server.active_expire_enabled && server.masterhost == NULL)
+    if (server.active_expire_enabled && server.masterhost == NULL) //只有master才做定时过期清理动作
         activeExpireCycle(ACTIVE_EXPIRE_CYCLE_FAST);
 
     /* Send all the slaves an ACK request if at least one client blocked
@@ -2834,11 +2837,12 @@ int processCommand(redisClient *c) {
     // 如果设置了最大内存，那么检查内存是否超过限制，并做相应的操作
     if (server.maxmemory) {
         // 如果内存已超过限制，那么尝试通过删除过期键来释放内存
-        int retval = freeMemoryIfNeeded();
+        int retval = freeMemoryIfNeeded();//如果配置的是maxmemory-policy volatile-lru，则会强制删除KV，即使没有过期
         // 如果即将要执行的命令可能占用大量内存（REDIS_CMD_DENYOOM）
         // 并且前面的内存释放失败的话
         // 那么向客户端返回内存错误
-        if ((c->cmd->flags & REDIS_CMD_DENYOOM) && retval == REDIS_ERR) { //如果内存用完，又没有过期的，则直接报错
+        if ((c->cmd->flags & REDIS_CMD_DENYOOM) && retval == REDIS_ERR) { //如果内存用完，又没有过期的，则直接报错，
+        //如果配置淘汰策略为volatile-lru，则不会走到这里面，肯定会淘汰KV来满足新的KV
             flagTransaction(c);
             addReply(c, shared.oomerr);
             return REDIS_OK;
@@ -2920,7 +2924,7 @@ int processCommand(redisClient *c) {
     // 如果服务器正在载入数据到数据库，那么只执行带有 REDIS_CMD_LOADING
     // 标识的命令，否则将出错
     if (server.loading && !(c->cmd->flags & REDIS_CMD_LOADING)) {
-        addReply(c, shared.loadingerr);
+        addReply(c, shared.loadingerr); //如果载入数据的过程中收到命令则返回该值loadingerr
         return REDIS_OK;
     }
 
@@ -3418,7 +3422,7 @@ sds genRedisInfoString(char *section) {
             info = sdscatprintf(info,
                 "master_host:%s\r\n"
                 "master_port:%d\r\n"
-                "master_link_status:%s\r\n"
+                "master_link_status:%s\r\n"  //只有在主备同步正常的时候才为UP，如果主的积压缓冲区满了需要重新整体同步，这里会为down
                 "master_last_io_seconds_ago:%d\r\n"
                 "master_sync_in_progress:%d\r\n"
                 "slave_repl_offset:%lld\r\n"
@@ -3426,7 +3430,7 @@ sds genRedisInfoString(char *section) {
                 server.masterport,
                 (server.repl_state == REDIS_REPL_CONNECTED) ?
                     "up" : "down",
-                server.master ?
+                server.master ?   
                 ((int)(server.unixtime-server.master->lastinteraction)) : -1,
                 server.repl_state == REDIS_REPL_TRANSFER,
                 slave_repl_offset

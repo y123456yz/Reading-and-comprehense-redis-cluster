@@ -1614,7 +1614,7 @@ void stopLoading(void) {
    and if needed calculate rdb checksum  */
 // 记录载入进度信息，以便让客户端进行查询
 // 这也会在计算 RDB 校验和时用到。
-void rdbLoadProgressCallback(rio *r, const void *buf, size_t len) {
+void rdbLoadProgressCallback(rio *r, const void *buf, size_t len) { //rdbLoadProgressCallback->processEventsWhileBlocked
     if (server.rdb_checksum)
         rioGenericUpdateChecksum(r, buf, len);
     if (server.loading_process_events_interval_bytes &&
@@ -1627,7 +1627,7 @@ void rdbLoadProgressCallback(rio *r, const void *buf, size_t len) {
         if (server.masterhost && server.repl_state == REDIS_REPL_TRANSFER)
             replicationSendNewlineToMaster();
         loadingProgress(r->processed_bytes);
-        processEventsWhileBlocked();
+        processEventsWhileBlocked(); //注意这里，在加载RDB的时候，还是可以处理网络事件和非阻塞时间的
     }
 }
 
@@ -1636,7 +1636,7 @@ void rdbLoadProgressCallback(rio *r, const void *buf, size_t len) {
  */
 
 //rdbLoad是直接读取rdb文件内容中的key-value存入redisDb，而loadAppendOnlyFile通过伪客户端来执行，因为需要一条命令一条命令的恢复执行
-int rdbLoad(char *filename) {
+int rdbLoad(char *filename) {//在加载的时候是不会阻塞网络事件的，见rdbLoadProgressCallback->processEventsWhileBlocked
     uint32_t dbid;
     int type, rdbver;
     redisDb *db = server.db+0;

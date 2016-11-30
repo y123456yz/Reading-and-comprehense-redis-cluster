@@ -124,7 +124,11 @@ void freeReplicationBacklog(void) {
  * 添加数据到复制 backlog ，
  * 并且按照添加内容的长度更新 server.master_repl_offset 偏移量。
  */
-void feedReplicationBacklog(void *ptr, size_t len) {
+
+//info replication中的repl_backlog_first_byte_offset，表示积压缓存中有效数据的其实偏移量 
+//master_repl_offset表示积压缓冲区中的结束偏移量，结束偏移量和起始便宜量中的buf就是可用的数据
+//repl_backlog_histlen表示积压缓冲区中数据的大小
+void feedReplicationBacklog(void *ptr, size_t len) { //把ptr拷贝到server.repl_backlog复制积压缓冲区中
     unsigned char *p = ptr;
 
     // 将长度累加到全局 offset 中
@@ -134,14 +138,14 @@ void feedReplicationBacklog(void *ptr, size_t len) {
      * iteration and rewind the "idx" index if we reach the limit. */
     // 环形 buffer ，每次写尽可能多的数据，并在到达尾部时将 idx 重置到头部
     while(len) {
-        // 从 idx 到 backlog 尾部的字节数
+        // 从 idx 到 backlog 尾部的字节数   repl_backlog_size为整个积压缓冲区的大小
         size_t thislen = server.repl_backlog_size - server.repl_backlog_idx;
         // 如果 idx 到 backlog 尾部这段空间足以容纳要写入的内容
         // 那么直接将写入数据长度设为 len
         // 在将这些 len 字节复制之后，这个 while 循环将跳出
         if (thislen > len) thislen = len;
         // 将 p 中的 thislen 字节内容复制到 backlog
-        memcpy(server.repl_backlog+server.repl_backlog_idx,p,thislen);
+        memcpy(server.repl_backlog+server.repl_backlog_idx,p,thislen); //把ptr拷贝到server.repl_backlog复制积压缓冲区中
         // 更新 idx ，指向新写入的数据之后
         server.repl_backlog_idx += thislen;
         // 如果写入达到尾部，那么将索引重置到头部
@@ -486,7 +490,7 @@ int masterTryPartialResynchronization(redisClient *c) {
         // （想要恢复的那部分数据已经被覆盖）
         psync_offset < server.repl_backlog_off ||
         // psync offset 大于 backlog 所保存的数据的偏移量
-        psync_offset > (server.repl_backlog_off + server.repl_backlog_histlen))
+        psync_offset > (server.repl_backlog_off + server.repl_backlog_histlen))  //积压缓冲区中数据不全，要求从进行去量同步
     {
         // 执行 FULL RESYNC
         redisLog(REDIS_NOTICE,
@@ -2427,10 +2431,12 @@ void replicationCron(void) {
         (server.repl_state == REDIS_REPL_CONNECTING ||
          server.repl_state == REDIS_REPL_RECEIVE_PONG) &&
         (time(NULL)-server.repl_transfer_lastio) > server.repl_timeout)
+    /* 这里的时间差起点是:从发送sync要求主进行整体同步， repl_transfer_lastio表示每次接收到RDB文件的一块的时候都进行更新*/
+    /* 因此在进行主备同步期间，从备发送sync开始，这个过程中只要主不发送rdb文件，或者主在发送部分rdb文件后，不在继续发送，都会引起这里超时，然后重连 */
     {
-        redisLog(REDIS_WARNING,"Timeout connecting to the MASTER...");
+        redisLog(REDIS_WARNING, "Timeout connecting to the MASTER...");
         // 取消连接
-        undoConnectWithMaster();
+        undoConnectWithMaster(); //从连接主超时在这里
     }
 
     /* Bulk transfer I/O timeout? */

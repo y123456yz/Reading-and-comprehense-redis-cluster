@@ -1513,7 +1513,7 @@ long long getExpire(redisDb *db, robj *key) {
  * 这种做法使得对键的过期可以集中在一处处理，
  * 因为 AOF 以及主节点和附属节点之间的链接，都可以保证操作的执行顺序，
  * 所以即使有写操作对过期键执行，所有数据都还是 consistent 的。
- */
+ */ ////主过期需要出发从过期，
 void propagateExpire(redisDb *db, robj *key) { //键过期后需要让所有从redis数据库知道，并且需要些一个del到aOF
     robj *argv[2];
 

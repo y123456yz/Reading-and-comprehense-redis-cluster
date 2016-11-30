@@ -506,7 +506,7 @@ void loadServerConfigFromString(char *config) {
             server.client_obuf_limits[class].soft_limit_bytes = soft;
             server.client_obuf_limits[class].soft_limit_seconds = soft_seconds;
         } else if (!strcasecmp(argv[0],"stop-writes-on-bgsave-error") &&
-                   argc == 2) {
+                   argc == 2) { //执行bgsave失败则不允许往主master写入KV，见processCommand
             if ((server.stop_writes_on_bgsave_err = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }

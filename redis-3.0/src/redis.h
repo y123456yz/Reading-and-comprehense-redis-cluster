@@ -1083,7 +1083,7 @@ typedef struct redisClient {   //redisServer与redisClient对应
     //见slaveTryPartialResynchronization   //备服务器只有在接收到完整的主服务器的RDB文件后，才会更新该值，并且在实时数据过来的时候也需要更新该值。
     //如果该redis备启动后，正在同步rdb文件，同步一般RDB文件，这时候网络异常，则再次连接上后还是需要进行完整RDB同步，
     //因为只有同步了完整的RDB文件后才会更新偏移量reploff，见slaveTryPartialResynchronization 
-    long long reploff;      /* replication offset if this is our master */
+    long long reploff;      /* replication offset if this is our master */ //通过replicationSendAck报告给master
     // 从服务器最后一次发送 REPLCONF ACK 时的偏移量
     long long repl_ack_off; /* replication ack offset, if this is a slave */
     // 从服务器最后一次发送 REPLCONF ACK 的时间   赋值见replconfCommand
@@ -1471,7 +1471,7 @@ struct redisServer {//struct redisServer server;
 
     /* RDB / AOF loading information */
 
-    // 这个值为真时，表示服务器正在进行载入
+    // 这个值为真时，表示服务器正在进行载入     如果该值为1，则会有打印addReply(c, shared.loadingerr);
     int loading;                /* We are loading data from disk if true */
 
     // 正在载入的数据的大小
@@ -1577,6 +1577,20 @@ struct redisServer {//struct redisServer server;
     // 客户端最大空转时间  默认REDIS_MAXIDLETIME不检查
     int maxidletime;                /* Client timeout in seconds */
 
+    /*
+    2、使用TCP的keepalive机制,UNIX网络编程不推荐使用SO_KEEPALIVE来做心跳检测(为什么??)。
+    keepalive原理:TCP内嵌有心跳包,以服务端为例,当server检测到超过一定时间(/proc/sys/net/ipv4/tcp_keepalive_time 7200 即2小时)没有数据传输,那么会向client端发送一个keepalive packet,此时client端有三种反应:
+    1、client端连接正常,返回一个ACK.server端收到ACK后重置计时器,在2小时后在发送探测.如果2小时内连接上有数据传输,那么在该时间的基础上向后推延2小时发送探测包;
+    2、客户端异常关闭,或网络断开。client无响应,server收不到ACK,在一定时间(/proc/sys/net/ipv4/tcp_keepalive_intvl 75 即75秒)后重发keepalive packet, 并且重发一定次数(/proc/sys/net/ipv4/tcp_keepalive_probes 9 即9次);
+    3、客户端曾经崩溃,但已经重启.server收到的探测响应是一个复位,server端终止连接。
+    修改三个参数的系统默认值
+    临时方法:向三个文件中直接写入参数,系统重启需要重新设置;
+    临时方法:sysctl -w net.ipv4.tcp_keepalive_intvl=20
+    全局设置:可更改/etc/sysctl.conf,加上:
+    net.ipv4.tcp_keepalive_intvl = 20
+    net.ipv4.tcp_keepalive_probes = 3
+    net.ipv4.tcp_keepalive_time = 60
+    */
     // 是否开启 SO_KEEPALIVE 选项  tcp-keepalive 设置，默认不开启
     int tcpkeepalive;               /* Set SO_KEEPALIVE if non-zero. */
     //默认初始化为1
@@ -1662,6 +1676,7 @@ struct redisServer {//struct redisServer server;
 
     // 指示是否需要每写入一定量的数据，就主动执行一次 fsync()
     int aof_rewrite_incremental_fsync;/* fsync incrementally while rewriting? */
+    //只有在flushAppendOnlyFile失败的时候才会REDIS_ERR  一般都是内存不够或者磁盘空间不够的时候出现ERR
     int aof_last_write_status;      /* REDIS_OK or REDIS_ERR */
     int aof_last_write_errno;       /* Valid if aof_last_write_status is ERR */
     /* RDB persistence */
@@ -1711,7 +1726,8 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     time_t rdb_save_time_start;     /* Current RDB save start time. */
 
     // 最后一次执行 SAVE 的状态 //当bgsave执行完毕后，会在backgroundSaveDoneHandler更新该值
-    int lastbgsave_status;          /* REDIS_OK or REDIS_ERR */
+    //只有在进行bgsave的时候fork失败或者bgsave过程中被中断，写文件失败的时候才会为REDIS_ERR
+    int lastbgsave_status;          /* REDIS_OK or REDIS_ERR */ 
     int stop_writes_on_bgsave_err;  /* Don't allow writes if can't BGSAVE */
 
 
@@ -1728,13 +1744,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
 
     /* Replication (master) */
     int slaveseldb;                 /* Last SELECTed DB in replication output */
-    // 全局复制偏移量（一个累计值）
-    long long master_repl_offset;   /* Global replication offset */
-    // 主服务器发送 PING 的频率
-    int repl_ping_slave_period;     /* Master pings the slave every N seconds */
-
-
-/*
+    /*
     根据需要调整复制积压缓冲区的大小
         Redis为复制积压缓冲区设置的默认大小为l MB，如果主服务器需要执行大量写命令，又或者主从服务器断线后重连接所需的时间比较长，
     那么这个大小也许并不合适。
@@ -1762,18 +1772,31 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
         结果发现这些数据仍然存在，于是主服务器向从服务器发送"+CONTINUE"回复，表示数据同步将以部分重同步模式来进行。
     接着主服务器会将复制积压缓冲区10086偏移量之后的所有数据（偏移量为10087至10119）都发送给从服务器。
 */
+    
+    // 全局复制偏移量（一个累计值）  是总长度，也就是写入积压缓冲区的时候就加，写多少加多少
+    //info replication中的repl_backlog_first_byte_offset，表示积压缓存中有效数据的其实偏移量 
+    //master_repl_offset表示积压缓冲区中的结束偏移量，结束偏移量和起始便宜量中的buf就是可用的数据
+    //repl_backlog_histlen表示积压缓冲区中数据的大小 见feedReplicationBacklog
+    long long master_repl_offset;   /* Global replication offset */
+    // 主服务器发送 PING 的频率
+    int repl_ping_slave_period;     /* Master pings the slave every N seconds */
 
-
-    // backlog 本身   repl_backlog积压缓存区空间  repl_backlog_size积压缓冲区总大小  参考resizeReplicationBacklog
+    //主备通过replicationFeedSlaves实现实时命令同步， 实时命令写入积压缓冲区在接口feedReplicationBacklog
+    // backlog 本身 repl_backlog积压缓存区空间 repl_backlog_size积压缓冲区总大小 参考resizeReplicationBacklog 积压缓冲区空间分配在createReplicationBacklog
     char *repl_backlog;             /* Replication backlog for partial syncs */
     //repl_backlog积压缓存区空间  repl_backlog_size积压缓冲区总大小  参考resizeReplicationBacklog
     // backlog 的长度 //repl-backlog-size进行设置  表示在从服务器断开连接过程中，如果有很大写命令，则用该大小的积压缓冲区来存储这些新增的，下次再次连接上直接把积压缓冲区的内容发送给从服务器即可
     long long repl_backlog_size;    /* Backlog circular buffer size */
-    // backlog 中数据的长度  repl_backlog_histlen 的最大值只能等于 repl_backlog_size
-    long long repl_backlog_histlen; /* Backlog actual data length */
-    // backlog 的当前索引
+    //info replication中的repl_backlog_first_byte_offset，表示积压缓存中有效数据的其实偏移量 
+    //master_repl_offset表示积压缓冲区中的结束偏移量，结束偏移量和起始便宜量中的buf就是可用的数据
+    //repl_backlog_histlen表示积压缓冲区中数据的大小 见feedReplicationBacklog
+    // backlog 中数据的长度  repl_backlog_histlen 的最大值只能等于 repl_backlog_size 
+    long long repl_backlog_histlen; /* Backlog actual data length */ //真正生效的地方见masterTryPartialResynchronization
+    // backlog 的当前索引  也就是下次数据应该从环形缓冲区的那个地方开始写，见feedReplicationBacklog
     long long repl_backlog_idx;     /* Backlog circular buffer current offset */
-    // backlog 中可以被还原的第一个字节的偏移量
+    // backlog 中可以被还原的第一个字节的偏移量    见feedReplicationBacklog
+    //info replication中的repl_backlog_first_byte_offset，表示积压缓存中有效数据的其实偏移量  master_repl_offset表示积压缓冲区中的结束偏移量，结束偏移量和起始便宜量中的buf就是可用的数据
+    //真正生效的地方见masterTryPartialResynchronization
     long long repl_backlog_off;     /* Replication offset of first byte in the
                                        backlog buffer. */
     // backlog 的过期时间
@@ -1810,7 +1833,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     char *masterhost;               /* Hostname of master */ //赋值见replicationSetMaster  建立连接在replicationCron
     // 主服务器的端口 //slaveof 10.2.2.2 1234 中的masterhost=10.2.2.2 masterport=1234
     int masterport;                 /* Port of master */ //赋值见replicationSetMaster  建立连接在replicationCron
-    // 超时时间
+    // 超时时间  从连接主的超时时间
     int repl_timeout;               /* Timeout after N seconds of master idle */
 
     /*
@@ -1834,7 +1857,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
 
     //当本节点是从节点的时候，就创建一个redisClient节点用来专门同步主节点发往本节点的实时KV对给本从服务器  
     //例如从服务器连接到本主服务器，客户端更新了KV，这个更新操作就通过该redisClient来和主服务器通信
-    //replicationHandleMasterDisconnection中置为NULL
+    //replicationHandleMasterDisconnection中置为NULL   如果主的在整体同步的时候，主老是不响应，则会触发undoConnectWithMaster进行重连
     redisClient *master;     /* Client that is master for this slave */ //如果备和主连接端口，则备会把该master记录到cached_master中，见replicationCacheMaster
     // 被缓存的主服务器，PSYNC 时使用  
 //例如从服务器之前和主服务器连接上，并同步了数据，中途端了，则连接断了后会在replicationCacheMaster把server.cached_master = server.master;表示之前有连接到过服务器
@@ -1864,7 +1887,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     int repl_transfer_fd;    /* Slave -> Master SYNC temp file descriptor */
     // 保存 RDB 文件的临时文件名字
     char *repl_transfer_tmpfile; /* Slave-> master SYNC temp file name */
-    // 最近一次读入 RDB 内容的时间
+    // 最近一次读入 RDB 内容的时间  在接收RDB的时候，只要接收到一次数据就更新该值，见readSyncBulkPayload
     time_t repl_transfer_lastio; /* Unix time of the latest read, for timeout */
     int repl_serve_stale_data; /* Serve stale data when link is down? */
     // 是否只读从服务器？  从服务器默认是只读，不能进行相关写操作

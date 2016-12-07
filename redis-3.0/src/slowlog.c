@@ -58,7 +58,7 @@
  * this function. 
  *
  * 函数负责增加所有记录对象的引用计数
- */
+ */ //slowlog只记录客户端执行cmd命令的时延信息，redis内部可能出现的阻塞操作是靠latency机制统计的，见http://blog.csdn.net/dc_726/article/details/47699739
 slowlogEntry *slowlogCreateEntry(robj **argv, int argc, long long duration) {
     slowlogEntry *se = zmalloc(sizeof(*se));
     int j, slargc = argc;
@@ -166,7 +166,10 @@ void slowlogInit(void) {
  * configured max length. 
  *
  * 根据服务器设置的最大日志长度，可能会对日志进行截断（trim）
- */
+ */ 
+//redis-cli --intrinsic-latency 100 -h 127.0.0.1 -p 7001 可以测试时延，是通过发送命令来测试的，
+//命令操作引起的slowlog会记录日志中，但是redis内部自己的阻塞操作是不记录日志的。可以参考新版本redis的latency功能
+//slowlog只记录客户端执行cmd命令的时延信息，redis内部可能出现的阻塞操作是靠latency机制统计的，见http://blog.csdn.net/dc_726/article/details/47699739
 void slowlogPushEntryIfNeeded(robj **argv, int argc, long long duration) {
 
     // 慢查询功能未开启，直接返回

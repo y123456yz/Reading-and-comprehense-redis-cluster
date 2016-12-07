@@ -951,6 +951,12 @@ void 7xxxxxxxxxxxxxxxxxxxxxxxxxxx4503093(redisClient *c) {
             ll < 0) goto badfmt;
         server.slave_priority = ll;
     } else if (!strcasecmp(c->argv[2]->ptr,"min-slaves-to-write")) {
+/*
+#  如果少于 N 个 slave 连接，且延迟时间 <=M 秒，则 master 可配置停止接受写操作。
+#  例如需要至少 3 个 slave 连接，且延迟 <=10 秒的配置：
+# min-slaves-to-write 3
+# min-slaves-max-lag 10
+*/
         if (getLongLongFromObject(o,&ll) == REDIS_ERR ||
             ll < 0) goto badfmt;
         server.repl_min_slaves_to_write = ll;

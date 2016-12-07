@@ -125,6 +125,14 @@ void freeReplicationBacklog(void) {
  * ²¢ÇÒ°´ÕÕÌí¼ÓÄÚÈİµÄ³¤¶È¸üĞÂ server.master_repl_offset Æ«ÒÆÁ¿¡£
  */
 
+  /*¸´ÖÆ»ıÑ¹»º³åÇø¼ûfeedReplicationBacklog£¬Õâ¸öÖ÷ÒªÓÃÓÚÍøÂçÉÁ¶Ï£¬È»ºóÍ¨¹ıclient->replyÁ´±í´æ´¢·¢ËÍÕâĞ©KV£¬ÕâĞ©KV±íÃæÉÏ
+ ·¢ËÍ³öÈ¥ÁË£¬Êµ¼ÊÉÏ¶Ô·½Ã»ÓĞÊÕµ½,ÏÂ´Î¸Ä¿Í»§¶ËÁ¬ÉÏºó£¬Í¨¹ıreplconf ack xxxÀ´Í¨¸æ×Ô¼ºµÄoffset£¬masterÊÕµ½ºó¾Í¿ÉÒÔÅĞ¶Ï¶Ô·½ÊÇ·ñÓĞÃ»ÊÕÈ«µÄÊı¾İ
+ ·¢ËÍµ½clientµÄÊµÊ±KV»ıÑ¹bufferÏŞÖÆÔÚcheckClientOutputBufferLimits 
+
+ Õâ¾ÍÊÇÊä³ö»º³åÇø:client->reply        checkClientOutputBufferLimits    Ö÷ÒªÓ¦¶Ô¿Í»§¶Ë¶ÁÈ¡Âı£¬Í¬Ê±ÓÖÓĞ´óÁ¿KV½øÈë±¾½Úµã£¬Ôì³É»ıÑ¹
+ ¸´ÖÆ»ıÑ¹»º³åÇø:server.repl_backlog    feedReplicationBacklog    Ö÷ÒªÓ¦¶ÔÍøÂçÉÁ¶Ï£¬½øĞĞ²¿·ÖÖØÍ¬²½psyn£¬²»±ØÈ«Á¿Í¬²½
+ */
+
 //info replicationÖĞµÄrepl_backlog_first_byte_offset£¬±íÊ¾»ıÑ¹»º´æÖĞÓĞĞ§Êı¾İµÄÆäÊµÆ«ÒÆÁ¿ 
 //master_repl_offset±íÊ¾»ıÑ¹»º³åÇøÖĞµÄ½áÊøÆ«ÒÆÁ¿£¬½áÊøÆ«ÒÆÁ¿ºÍÆğÊ¼±ãÒËÁ¿ÖĞµÄbuf¾ÍÊÇ¿ÉÓÃµÄÊı¾İ
 //repl_backlog_histlen±íÊ¾»ıÑ¹»º³åÇøÖĞÊı¾İµÄ´óĞ¡
@@ -283,7 +291,7 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
 
     /* Write the command to every slave. */
     listRewind(slaves,&li);
-    while((ln = listNext(&li))) {
+    while((ln = listNext(&li))) { //»á²»Í£µÄÍø¸Ãclient out bufferÖĞĞ´Êı¾İ£¬Èç¹û³¬¹ıclient-output-buffer-limitÅäÖÃ£¬Ôò»áÖ±½Ó¶Ï¿ª¸Ã¿Í»§¶ËÁ¬½Ó
 
         // Ö¸Ïò´Ó·şÎñÆ÷
         redisClient *slave = ln->value;
@@ -584,7 +592,7 @@ PSYNCÃüÁîµÄµ÷ÓÃ·½·¨ÓĞÁ½ÖÖ£º
 //×¢ÒâÔÚSYNCºÍPSYNCÖ®Ç°ÓĞ¼¸´Î½»»¥£¬¼ûslaveTryPartialResynchronization
 
 //·şÎñÆ÷Ö´ĞĞip+portºó£¬»áµ÷ÓÃreplicationSetMaster£¬°Ñ¸Ã¸Ã·şÎñÆ÷ÏÂÃæµÄËùÓĞ´Ó·şÎñÆ÷Á¬½Ó¶Ï¿ª£¬ÕâÑù¿ÉÒÔ±£Ö¤£¬Í¬Ê±ÒªÊÍ·ÅÖ®Ç°salveofÉèÖÃµÄ¾ÉµÄip+port¶Ë¿Ú
-void syncCommand(redisClient *c) {
+void syncCommand(redisClient *c) { //syncºÍpsync»Øµ÷¶¼ÊÇ¸Ã½Ó¿Ú
 
     /* ignore SYNC if already slave or in monitor mode */
     //ËµÃ÷Ö®Ç°ÒÑ¾­Í¬²½¹ı£¬Ôò²»ÓÃÔÚÈ«²¿Í¬²½ÁË£¬¶øÊÇ²ÉÓÃÔöÁ¿Ê½·¢ËÍ¶Ï¿ªÁ¬½ÓºóÖ÷·şÎñÆ÷ÉÏĞÂ²úÉúµÄÃüÁî
@@ -1076,6 +1084,8 @@ void replicationAbortSyncTransfer(void) {
  * The function is called in two contexts: while we flush the current
  * data with emptyDb(), and while we load the new data received as an
  * RDB file from the master. */
+/* ´Ó¿Í»§¶Ë·¢ËÍ¿ÕĞĞ¸øÖ÷¿Í»§¶Ë£¬ÆÆ»µÁËÔ­±¾µÄĞ­Òé¸ñÊ½£¬±ÜÃâÈÃÖ÷¿Í»§¶Ë¼ì²â³ö´Ó¿Í»§¶Ë³¬Ê±µÄÇé¿ö */
+//·¢ËÍ¸ö¿ÕĞĞµ½Ö÷·şÎñÆ÷£¬ÕâÑù±ÜÃâÖ÷·şÎñÆ÷ÈÏÎª´Ó·şÎñÆ÷³¬Ê±£¬processInlineBufferÊÕµ½¸Ã\n×Ö·û£¬»á¸üĞÂrepl_ack_time
 void replicationSendNewlineToMaster(void) {
     static time_t newline_sent;
     if (time(NULL) != newline_sent) {
@@ -1088,6 +1098,7 @@ void replicationSendNewlineToMaster(void) {
 
 /* Callback used by emptyDb() while flushing away old data to load
  * the new dataset received by the master. */
+
 void replicationEmptyDbCallback(void *privdata) {
     REDIS_NOTUSED(privdata);
     replicationSendNewlineToMaster();
@@ -1214,6 +1225,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
         // ÏÈÇå¿Õ¾ÉÊı¾İ¿â
         redisLog(REDIS_NOTICE, "MASTER <-> SLAVE sync: Flushing old data");
         signalFlushedDb(-1);  
+        //??????ÕâÀïÆäËû¼¯Èº½Úµã»á²»»á±ê¼Ç¸Ã½ÚµãÏÂÏßÄØ????ÒòÎªÕâÀïµÄÇå³ı²Ù×÷¿ÉÄÜĞèÒªÏûºÄ´óÁ¿Ê±¼ä£¬³¬¹ı¼¯Èº¼äPING--PONGÊ±¼äÁË
         emptyDb(replicationEmptyDbCallback);//°ÑÄÚ´æÖĞµÄËùÓĞdbid(select idÖĞµÄid)Êı¾İ¿âkey-valueÇå³ş£¬Èç¹ûÎª-1£¬±íÊ¾°ÑËµÓĞÊı¾İ¿âÇå³ı
         /* Before loading the DB into memory we need to delete the readable
          * handler, otherwise it will get called recursively since
@@ -1936,9 +1948,15 @@ void slaveofCommand(redisClient *c) { //ÏëÈÃÒ»¸ö½ÚµãAÍ¨¹ıslaveof³ÉÎªÁíÒ»¸ö½ÚµãBµ
 /* Send a REPLCONF ACK command to the master to inform it about the current
  * processed offset. If we are not connected with a master, the command has
  * no effects. */
+
+/*
+MasterÃ¿¸ô10Ãë(repl-ping-slave-period²ÎÊıÅäÖÃ)ÏòSlave·¢ËÍPINGÃüÁî
+SlaveÃ¿¸ô1ÃëÏòMaster·¢ËÍ¡±REPLCONF¡± ¡°ACK¡± ¡°Êı×Ö(slave_repl_offset)¡±
+*/
+ 
 // ÏòÖ÷·şÎñÆ÷·¢ËÍ REPLCONF AKC £¬¸æÖªµ±Ç°´¦ÀíµÄÆ«ÒÆÁ¿
 // Èç¹ûÎ´Á¬½ÓÉÏÖ÷·şÎñÆ÷£¬ÄÇÃ´Õâ¸öº¯ÊıÃ»ÓĞÊµ¼ÊĞ§¹û
-void replicationSendAck(void) {
+void replicationSendAck(void) { 
     redisClient *c = server.master;
 
     if (c != NULL) {
@@ -2430,7 +2448,7 @@ void replicationCron(void) {
     if (server.masterhost &&
         (server.repl_state == REDIS_REPL_CONNECTING ||
          server.repl_state == REDIS_REPL_RECEIVE_PONG) &&
-        (time(NULL)-server.repl_transfer_lastio) > server.repl_timeout)
+        (time(NULL)-server.repl_transfer_lastio) > server.repl_timeout) //Master bgsaveÉú³ÉRDBÊ§°Ü»ò¹ıÂı¾ÍÓĞ¿ÉÄÜ×ßµ½Õâ¸öifÄÚ²¿
     /* ÕâÀïµÄÊ±¼ä²îÆğµãÊÇ:´Ó·¢ËÍsyncÒªÇóÖ÷½øĞĞÕûÌåÍ¬²½£¬ repl_transfer_lastio±íÊ¾Ã¿´Î½ÓÊÕµ½RDBÎÄ¼şµÄÒ»¿éµÄÊ±ºò¶¼½øĞĞ¸üĞÂ*/
     /* Òò´ËÔÚ½øĞĞÖ÷±¸Í¬²½ÆÚ¼ä£¬´Ó±¸·¢ËÍsync¿ªÊ¼£¬Õâ¸ö¹ı³ÌÖĞÖ»ÒªÖ÷²»·¢ËÍrdbÎÄ¼ş£¬»òÕßÖ÷ÔÚ·¢ËÍ²¿·ÖrdbÎÄ¼şºó£¬²»ÔÚ¼ÌĞø·¢ËÍ£¬¶¼»áÒıÆğÕâÀï³¬Ê±£¬È»ºóÖØÁ¬ */
     {
@@ -2449,8 +2467,12 @@ void replicationCron(void) {
         replicationAbortSyncTransfer();
     }
 
+/*
+MasterÃ¿¸ô10Ãë(repl-ping-slave-period²ÎÊıÅäÖÃ)ÏòSlave·¢ËÍPINGÃüÁî
+SlaveÃ¿¸ô1ÃëÏòMaster·¢ËÍ¡±REPLCONF¡± ¡°ACK¡± ¡°Êı×Ö(slave_repl_offset)¡±
+*/
     /* Timed out master when we are an already connected slave? */
-    // ´Ó·şÎñÆ÷Ôø¾­Á¬½ÓÉÏÖ÷·şÎñÆ÷£¬µ«ÏÖÔÚ³¬Ê±
+    // ´Ó·şÎñÆ÷Ôø¾­Á¬½ÓÉÏÖ÷·şÎñÆ÷£¬µ«ÏÖÔÚ³¬Ê±   ´ÓºÜ¾ÃÃ»ÓĞÊÕµ½Ö÷µÄPINGÏûÏ¢ÁË£¬³¬Ê±    Ö÷¼ì²â´ÓµÄreplconf ack xxx±¨ÎÄÊÇ·ñ³¬Ê±£¬ÔÚ¸Ãº¯ÊıºóÃæ
     if (server.masterhost && server.repl_state == REDIS_REPL_CONNECTED &&
         (time(NULL)-server.master->lastinteraction) > server.repl_timeout)
     {
@@ -2476,9 +2498,14 @@ void replicationCron(void) {
     // ²»¹ıÈç¹ûÖ÷·şÎñÆ÷´øÓĞ REDIS_PRE_PSYNC µÄ»°¾Í²»·¢ËÍ
     // ÒòÎª´øÓĞ¸Ã±êÊ¶µÄ°æ±¾Îª < 2.8 µÄ°æ±¾£¬ÕâĞ©°æ±¾²»Ö§³Ö ACK ÃüÁî
     if (server.masterhost && server.master &&
-        !(server.master->flags & REDIS_PRE_PSYNC))
+        !(server.master->flags & REDIS_PRE_PSYNC)) //Ö»ÏòÖ§³ÖPSYNCµÄmaster·¢ËÍreplconf ack
         replicationSendAck();
-    
+
+
+/*
+MasterÃ¿¸ô10Ãë(repl-ping-slave-period²ÎÊıÅäÖÃ)ÏòSlave·¢ËÍPINGÃüÁî
+SlaveÃ¿¸ô1ÃëÏòMaster·¢ËÍ¡±REPLCONF¡± ¡°ACK¡± ¡°Êı×Ö(slave_repl_offset)¡±
+*/
     /* If we have attached slaves, PING them from time to time.
      *
      * Èç¹û·şÎñÆ÷ÓĞ´Ó·şÎñÆ÷£¬¶¨Ê±ÏòËüÃÇ·¢ËÍ PING ¡£
@@ -2528,7 +2555,7 @@ void replicationCron(void) {
 
     /* Disconnect timedout slaves. */
     // ¶Ï¿ª³¬Ê±´Ó·şÎñÆ÷
-    if (listLength(server.slaves)) {
+    if (listLength(server.slaves)) { //ÕâÀïÊÇmaster¼ì²â´ÓÊÇ·ñÓĞ·¢ËÍREPLCONF ACK±£»î±¨ÎÄ¹ıÀ´£¬ ´Ó¼ì²âÖ÷µÄPINGÔÚÇ°Ãæ
         listIter li;
         listNode *ln;
 

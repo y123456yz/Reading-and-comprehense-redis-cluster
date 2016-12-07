@@ -351,7 +351,7 @@ robj *dbUnshareStringValue(redisDb *db, robj *key, robj *o) {
 /*
  * 清空服务器的所有数据。
  */ //把内存中的所有dbid(select id中的id)数据库key-value清楚，如果为-1，表示把说有数据库清除
-long long emptyDb(void(callback)(void*)) {
+long long emptyDb(void(callback)(void*)) { //注意如果KV量很大，可能会引起阻塞
     int j;
     long long removed = 0;
 
@@ -774,8 +774,8 @@ void scanCallback(void *privdata, const dictEntry *de) {
 /* Try to parse a SCAN cursor stored at object 'o':
  * if the cursor is valid, store it as unsigned integer into *cursor and
  * returns REDIS_OK. Otherwise return REDIS_ERR and send an error to the
- * client. */
-int parseScanCursorOrReply(redisClient *c, robj *o, unsigned long *cursor) {
+ * client. */ /* 获取scan命令的游标 */
+int parseScanCursorOrReply(redisClient *c, robj *o, unsigned long *cursor) { /**/
     char *eptr;
 
     /* Use strtoul() because we need an *unsigned* long, so
@@ -813,7 +813,22 @@ int parseScanCursorOrReply(redisClient *c, robj *o, unsigned long *cursor) {
  *
  * 如果被迭代的是哈希对象，那么函数返回的是键值对。
  */
-void scanGenericCommand(redisClient *c, robj *o, unsigned long cursor) {
+
+/*
+Redis的SCAN操作由于其整体的数据设计，无法提供特别准的scan操作，仅仅是一个“can ‘ t guarantee ， just do my best”的实现，优缺点如下：
+
+优点：
+    提供键空间的遍历操作，支持游标，复杂度O(1), 整体遍历一遍只需要O(N)；
+    提供结果模式匹配；
+    支持一次返回的数据条数设置，但仅仅是个hints，有时候返回的会多；
+    弱状态，所有状态只需要客户端需要维护一个游标；
+缺点：
+    无法提供完整的快照遍历，也就是中间如果有数据修改，可能有些涉及改动的数据遍历不到；
+    每次返回的数据条数不一定，极度依赖内部实现；
+    返回的数据可能有重复，应用层必须能够处理重入逻辑；
+*/
+void scanGenericCommand(redisClient *c, robj *o, unsigned long cursor) { /* cursor游标 */
+    //SCAN cursor [MATCH pattern] [COUNT count]
     int rv;
     int i, j;
     char buf[REDIS_LONGSTR_SIZE];
@@ -843,7 +858,7 @@ void scanGenericCommand(redisClient *c, robj *o, unsigned long cursor) {
         j = c->argc - i;
 
         // COUNT <number>
-        if (!strcasecmp(c->argv[i]->ptr, "count") && j >= 2) {
+        if (!strcasecmp(c->argv[i]->ptr, "count") && j >= 2) { //用户可以通过增量式迭代命令提供的 COUNT 选项来指定每次迭代返回元素的最大值。
             if (getLongFromObjectOrReply(c, c->argv[i+1], &count, NULL)
                 != REDIS_OK)
             {
@@ -890,7 +905,7 @@ void scanGenericCommand(redisClient *c, robj *o, unsigned long cursor) {
 
     /* Handle the case of a hash table. */
     ht = NULL;
-    if (o == NULL) {
+    if (o == NULL) { //需要扫描字典中的所有key
         // 迭代目标为数据库
         ht = c->db->dict;
     } else if (o->type == REDIS_SET && o->encoding == REDIS_ENCODING_HT) {
@@ -917,11 +932,11 @@ void scanGenericCommand(redisClient *c, robj *o, unsigned long cursor) {
         // 一个是用于记录被迭代元素的列表
         // 另一个是字典对象
         // 从而实现类型无关的数据提取操作
-        privdata[0] = keys;
+        privdata[0] = keys; //用来存储scan到的10条数据
         privdata[1] = o;
-        do {
+        do {//一个个扫描，从cursor开始，然后调用回调函数将数据设置到keys返回数据集里面。
             cursor = dictScan(ht, cursor, scanCallback, privdata);
-        } while (cursor && listLength(keys) < count);
+        } while (cursor && listLength(keys) < count); //一次最多scan count个数据，默认10个数据
     } else if (o->type == REDIS_SET) {
         int pos = 0;
         int64_t ll;
@@ -1368,7 +1383,7 @@ redis:1> GET favorite_fruit                 # 数据库 1 的 favorite_fruit 也是
 "apple"
 
 
-*/
+*/ //注意MOVED和ASING的区别
 void moveCommand(redisClient *c) {
     robj *o;
     redisDb *src, *dst;

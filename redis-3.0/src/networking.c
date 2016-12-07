@@ -1292,8 +1292,10 @@ int processInlineBuffer(redisClient *c) {
     /* Newline from slaves can be used to refresh the last ACK time.
      * This is useful for a slave to ping back while loading a big
      * RDB file. */
+    //从服务器在rdb全量同步完成的时候，会清除本设备上面的全部KV，这是阻塞过程，为了避免这时候master把该slave判定为超时，会调用replicationEmptyDbCallback
     if (querylen == 0 && c->flags & REDIS_SLAVE)
-        c->repl_ack_time = server.unixtime;
+        c->repl_ack_time = server.unixtime; 
+   
 
     /* Leave data after the first line of the query in the buffer */
 
@@ -2080,8 +2082,16 @@ char *getClientLimitClassName(int class) {
  *
  * 返回值：到达软性限制或者硬性限制时，返回非 0 值。
  *         否则返回 0 。
- */
-int checkClientOutputBufferLimits(redisClient *c) { //复制积压缓冲区大小可以通过repl-backlog-size配置，默认为1M
+ */ 
+ /*复制积压缓冲区见feedReplicationBacklog，这个主要用于网络闪断，然后通过client->reply链表存储发送这些KV，这些KV表面上
+发送出去了，实际上对方没有收到,下次改客户端连上后，通过replconf ack xxx来通告自己的offset，master收到后就可以判断对方是否有没收全的数据
+发送到client的实时KV积压buffer限制在checkClientOutputBufferLimits 
+
+这就是输出缓冲区:client->reply        checkClientOutputBufferLimits    主要应对客户端读取慢，同时又有大量KV进入本节点，造成积压
+复制积压缓冲区:server.repl_backlog    feedReplicationBacklog    主要应对网络闪断，进行部分重同步psyn，不必全量同步
+*/
+int checkClientOutputBufferLimits(redisClient *c) { 
+//复制积压缓冲区大小可以通过repl-backlog-size配置，默认为1M， 发送到客户端的out buffer中KV超过限制，则会通过这里检查
     int soft = 0, hard = 0, class;
 
     // 获取客户端回复缓冲区的大小

@@ -510,7 +510,8 @@ REDIS_DIRTY_EXEC表示事务在命令人队时出现了错误，REDIS_DIRTY_CAS  REDIS_DIRTY_EXE
                                   server.unblocked_clients */
 //REDIS_LUA_CLIENT标识表示客户端是专门用于处理Lua脚本里面包含的Redis命令的伪客户端。
 #define REDIS_LUA_CLIENT (1<<8) /* This is a non connected client used by Lua */
-//表示客户端向集群节点（运行在集群模式下的服务器）发送了ASKING命令。
+//表示客户端向集群节点（运行在集群模式下的服务器）发送了ASKING命令。  REDIS_ASKING是个一次性标识，当节点执行了带有该标识的客户端的命令后会移除该标识
+//注意MOVED和ASING的区别
 #define REDIS_ASKING (1<<9)     /* Client issued the ASKING command */
 /*
 标志表示客户端的输出缓冲区大小超出了服务器允许的范围，服务器会在下一次执行serverCron函数时关闭这个客户端，以免服务器的稳定性
@@ -1017,7 +1018,16 @@ typedef struct redisClient {   //redisServer与redisClient对应
     可变大小的缓冲区用于保存那些长度比较大的回复，比如一个非常长的字符串值，一个由很多项组成的列表，一个包含了很多元素的集合等等。
     客户端的固定大小缓冲区由buf和bufpos两个属性组成： 动态缓冲区为edisClient->reply
      */
-    // 回复链表
+
+/*
+ 复制积压缓冲区见feedReplicationBacklog，这个主要用于网络闪断，然后通过client->reply链表存储发送这些KV，这些KV表面上
+ 发送出去了，实际上对方没有收到,下次改客户端连上后，通过replconf ack xxx来通告自己的offset，master收到后就可以判断对方是否有没收全的数据
+ 发送到client的实时KV积压buffer限制在checkClientOutputBufferLimits 
+
+ 这就是输出缓冲区:client->reply        checkClientOutputBufferLimits    主要应对客户端读取慢，同时又有大量KV进入本节点，造成积压
+ 复制积压缓冲区:server.repl_backlog    feedReplicationBacklog    主要应对网络闪断，进行部分重同步psyn，不必全量同步
+ */
+    // 回复链表   发送到该客户端的所有数据都是组成buf连接在一起的
     list *reply;
 
     // 回复链表中对象的总大小  参考_addReplyObjectToList
@@ -1495,7 +1505,8 @@ struct redisServer {//struct redisServer server;
     // 服务器启动时间
     time_t stat_starttime;          /* Server start time */
 
-    // 已处理命令的数量  当前总的指向命令总量  trackOperationsPerSecond
+    // 已处理命令的数量  当前总的指向命令总量  trackOperationsPerSecond   
+    //call中自增
     long long stat_numcommands;     /* Number of processed commands */
 
     // 服务器接到的连接请求数量
@@ -1781,9 +1792,17 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     // 主服务器发送 PING 的频率
     int repl_ping_slave_period;     /* Master pings the slave every N seconds */
 
+     /*复制积压缓冲区见feedReplicationBacklog，这个主要用于网络闪断，然后通过client->reply链表存储发送这些KV，这些KV表面上
+    发送出去了，实际上对方没有收到,下次改客户端连上后，通过replconf ack xxx来通告自己的offset，master收到后就可以判断对方是否有没收全的数据
+    发送到client的实时KV积压buffer限制在checkClientOutputBufferLimits 
+    
+    这就是输出缓冲区:client->reply        checkClientOutputBufferLimits    主要应对客户端读取慢，同时又有大量KV进入本节点，造成积压
+    复制积压缓冲区:server.repl_backlog    feedReplicationBacklog    主要应对网络闪断，进行部分重同步psyn，不必全量同步
+    */
+
     //主备通过replicationFeedSlaves实现实时命令同步， 实时命令写入积压缓冲区在接口feedReplicationBacklog
     // backlog 本身 repl_backlog积压缓存区空间 repl_backlog_size积压缓冲区总大小 参考resizeReplicationBacklog 积压缓冲区空间分配在createReplicationBacklog
-    char *repl_backlog;             /* Replication backlog for partial syncs */
+    char *repl_backlog;             /* Replication backlog for partial syncs */ //积压缓冲区在freeReplicationBacklog中释放
     //repl_backlog积压缓存区空间  repl_backlog_size积压缓冲区总大小  参考resizeReplicationBacklog
     // backlog 的长度 //repl-backlog-size进行设置  表示在从服务器断开连接过程中，如果有很大写命令，则用该大小的积压缓冲区来存储这些新增的，下次再次连接上直接把积压缓冲区的内容发送给从服务器即可
     long long repl_backlog_size;    /* Backlog circular buffer size */
@@ -1819,7 +1838,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     int repl_min_slaves_to_write;   /* Min number of slaves to write. */
     // 定义最小数量从服务器的最大延迟值
     int repl_min_slaves_max_lag;    /* Max lag of <count> slaves to write. */
-    // 延迟良好的从服务器的数量
+    // 延迟良好的从服务器的数量  只是为了info的时候查看的
     int repl_good_slaves_count;     /* Number of slaves with lag <= max_lag. */
 
 
@@ -1833,7 +1852,7 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     char *masterhost;               /* Hostname of master */ //赋值见replicationSetMaster  建立连接在replicationCron
     // 主服务器的端口 //slaveof 10.2.2.2 1234 中的masterhost=10.2.2.2 masterport=1234
     int masterport;                 /* Port of master */ //赋值见replicationSetMaster  建立连接在replicationCron
-    // 超时时间  从连接主的超时时间
+    // 超时时间  从连接主的超时时间   主要用于判断主到从的PING保活和从到主的replconf ack保活
     int repl_timeout;               /* Timeout after N seconds of master idle */
 
     /*

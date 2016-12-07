@@ -766,7 +766,7 @@ int _dictClear(dict *d, dictht *ht, void(callback)(void *)) {
     for (i = 0; i < ht->size && ht->used > 0; i++) {
         dictEntry *he, *nextHe;
 
-        if (callback && (i & 65535) == 0) callback(d->privdata);
+        if (callback && (i & 65535) == 0) callback(d->privdata); //清除过程中这里做一次callback调用
 
         // 跳过空索引
         if ((he = ht->table[i]) == NULL) continue;
@@ -1305,7 +1305,7 @@ static unsigned long rev(unsigned long v) {
  *    comment is supposed to help.
  *    对游标进行翻转（reverse）的原因初看上去比较难以理解，
  *    不过阅读这份注释应该会有所帮助。
- */
+ */ //可以参考http://chenzhenianqing.cn/articles/1101.html
 unsigned long dictScan(dict *d,
                        unsigned long v,
                        dictScanFunction *fn,

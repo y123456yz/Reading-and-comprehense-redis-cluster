@@ -940,7 +940,7 @@ int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
         robj *keyobj = createStringObject(key,sdslen(key));
 
         // 传播过期命令
-        propagateExpire(db,keyobj); //主过期需要出发从过期，
+        propagateExpire(db,keyobj); //主过期需要触发从过期，
         // 从数据库中删除该键
         dbDelete(db,keyobj);
         // 发送事件
@@ -1206,8 +1206,8 @@ void trackOperationsPerSecond(void) {
     // 计算两次抽样之间的时间长度，毫秒格式
     long long t = mstime() - server.ops_sec_last_sample_time;
 
-    // 计算两次抽样之间，执行了多少个命令
-    long long ops = server.stat_numcommands - server.ops_sec_last_sample_ops;
+    // 计算两次抽样之间，执行了多少个命令 //就是根据总的命令执行数total_commands_processed算出来的
+    long long ops = server.stat_numcommands - server.ops_sec_last_sample_ops; 
 
     long long ops_sec;
 
@@ -1232,7 +1232,7 @@ void trackOperationsPerSecond(void) {
 */
 /* Return the mean of all the samples. */
 // 根据所有取样信息，计算服务器最近一秒执行命令数的平均值
-long long getOperationsPerSecond(void) {
+long long getOperationsPerSecond(void) { //就是根据总的命令执行数total_commands_processed算平均得出来的
     int j;
     long long sum = 0;
 
@@ -2628,8 +2628,11 @@ void call(redisClient *c, int flags) {
     dirty = server.dirty;
     // 计算命令开始执行的时间
     start = ustime();
+  //从这里可以看出，执行命令回调后，返回给客户端的OK等信息是在该回调里面返回的，而命令时在该函数后面的propagate
+  //发送到slave的，所以往slave发送成功失败是不会影响对客户端的应答的
+  
     // 执行实现函数
-    c->cmd->proc(c);
+    c->cmd->proc(c); 
     // 计算命令执行耗费的时间
     duration = ustime()-start;
     // 计算命令执行之后的 dirty 值
@@ -2679,7 +2682,7 @@ void call(redisClient *c, int flags) {
         if (dirty)
             flags |= (REDIS_PROPAGATE_REPL | REDIS_PROPAGATE_AOF);
 
-        if (flags != REDIS_PROPAGATE_NONE)
+        if (flags != REDIS_PROPAGATE_NONE) //传播到aof或者slave
             propagate(c->cmd,c->db->id,c->argv,c->argc,flags);
     }
 
@@ -2814,6 +2817,12 @@ int processCommand(redisClient *c) {
             // 命令针对的槽和键不是本节点处理的，进行转向
             } else if (n != server.cluster->myself) {
                 flagTransaction(c);
+                //槽slot已经处于迁移至server.cluster->migrating_slots_to[slot]节点或者importing节点的过程中，则如果某个key发送到了本节点，
+                //则告诉对方ask server.cluster->migrating_slots_to[slot],也就是该key的操作应该放入到这个新的目的节点中，见getNodeByQuery，提示ask xxxx
+
+
+                //如果不处于migrating过程中，该key发错节点了，则是move xxx
+                 
                 // -<ASK or MOVED> <slot> <ip>:<port>
                 // 例如 -ASK 10086 127.0.0.1:12345
                 addReplySds(c,sdscatprintf(sdsempty(),
@@ -3691,6 +3700,11 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
 
     /* Try to use a static buffer: this function is a big hit...
      * Note: it was actually measured that this helps. */
+    /*
+    清理时会根据用户配置的maxmemory-policy来做适当的清理（一般是LRU或TTL），这里的LRU或TTL策略并不是针对
+    redis的所有key，而是以配置文件中的maxmemory-samples个key作为样本池进行抽样清理。
+    */
+    //如果我们在配置文件中配置的samples小于16，则直接使用EVICTION_SAMPLES_ARRAY_SIZE
     if (server.maxmemory_samples <= EVICTION_SAMPLES_ARRAY_SIZE) {
         samples = _samples;
     } else {
@@ -3698,6 +3712,7 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
     }
 
 #if 1 /* Use bulk get by default. */
+    //从样本集中随机获取server.maxmemory_samples个数据
     count = dictGetRandomKeys(sampledict,samples,server.maxmemory_samples);
 #else
     count = server.maxmemory_samples;
@@ -3717,6 +3732,7 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
          * again in the key dictionary to obtain the value object. */
         if (sampledict != keydict) de = dictFind(keydict, key);
         o = dictGetVal(de);
+        //计算该key已经多久没有访问了
         idle = estimateObjectIdleTime(o);
 
         /* Insert the element inside the pool.
@@ -3725,7 +3741,7 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
         k = 0;
         while (k < REDIS_EVICTION_POOL_SIZE &&
                pool[k].key &&
-               pool[k].idle < idle) k++;
+               pool[k].idle < idle) k++; //KV在pool中按照idle从小到大排序
         if (k == 0 && pool[REDIS_EVICTION_POOL_SIZE-1].key != NULL) {
             /* Can't insert if the element is < the worst element we have
              * and there are no empty buckets. */
@@ -3735,12 +3751,13 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
         } else {
             /* Inserting in the middle. Now k points to the first element
              * greater than the element to insert.  */
+            //移动元素，memmove,还有空间可以插入新元素
             if (pool[REDIS_EVICTION_POOL_SIZE-1].key == NULL) {
                 /* Free space on the right? Insert at k shifting
                  * all the elements from k to end to the right. */
                 memmove(pool+k+1,pool+k,
                     sizeof(pool[0])*(REDIS_EVICTION_POOL_SIZE-k-1));
-            } else {
+            } else { //已经没有空间插入新元素时，将第一个元素删除
                 /* No free space on right? Insert at k-1 */
                 k--;
                 /* Shift all elements on the left of k (included) to the
@@ -3757,6 +3774,11 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
 
 /*
 redis 内存数据集大小上升到一定大小的时候，就会施行数据淘汰策略。redis 提供 6种数据淘汰策略：
+
+如果是volatile开头的过期策略，则从expires字典中获取KV， allkeys的则是从dict字典中获取
+lru实际上是随机取maxmemory-samples个KV，把最久没有访问的，也就是idle时间最多的key删除
+ttl随机取出的maxmemory_samples个KV，谁最先过期就进行清理
+random为直接取一个key，然后清理，不管过期没过期
 
 volatile-lru：从已设置过期时间的数据集（server.db[i].expires）中挑选最近最少使用的数据淘汰
 volatile-ttl：从已设置过期时间的数据集（server.db[i].expires）中挑选将要过期的数据淘汰
@@ -3824,6 +3846,7 @@ int freeMemoryIfNeeded(void) {
             redisDb *db = server.db+j;
             dict *dict;
 
+            //如果是volatile开头的过期策略，则从expires字典中获取KV， allkeys的则是从dict字典中获取
             if (server.maxmemory_policy == REDIS_MAXMEMORY_ALLKEYS_LRU ||
                 server.maxmemory_policy == REDIS_MAXMEMORY_ALLKEYS_RANDOM)
             {
@@ -3857,7 +3880,8 @@ int freeMemoryIfNeeded(void) {
                 struct evictionPoolEntry *pool = db->eviction_pool;
 
                 while(bestkey == NULL) {
-                    evictionPoolPopulate(dict, db->dict, db->eviction_pool);
+                    //选择随机样式，并从样本中用LRU算法选择需要淘汰的数据
+                    evictionPoolPopulate(dict, db->dict, db->eviction_pool); //随机采maxmemory_samples个KV到db->eviction_pool中
                     /* Go backward from best to worst element to evict. */
                     for (k = REDIS_EVICTION_POOL_SIZE-1; k >= 0; k--) {
                         if (pool[k].key == NULL) continue;
@@ -3889,7 +3913,7 @@ int freeMemoryIfNeeded(void) {
             /* volatile-ttl */
             // 策略为 volatile-ttl ，从一集 sample 键中选出过期时间距离当前时间最接近的键
             else if (server.maxmemory_policy == REDIS_MAXMEMORY_VOLATILE_TTL) {
-                for (k = 0; k < server.maxmemory_samples; k++) {
+                for (k = 0; k < server.maxmemory_samples; k++) { 
                     sds thiskey;
                     long thisval;
 
@@ -3899,7 +3923,7 @@ int freeMemoryIfNeeded(void) {
 
                     /* Expire sooner (minor expire unix timestamp) is better
                      * candidate for deletion */
-                    if (bestkey == NULL || thisval < bestval) {
+                    if (bestkey == NULL || thisval < bestval) { //随机取出的maxmemory_samples个KV，谁最先过期就进行清理
                         bestkey = thiskey;
                         bestval = thisval;
                     }

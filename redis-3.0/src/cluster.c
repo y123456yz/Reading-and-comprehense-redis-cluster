@@ -27,6 +27,33 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+ 
+/*
+Èý£ºGossip
+    ÕâÀï»¹ÓÐÒ»¸öÎÊÌâ£¬Èç¹û¼¯ÈºÖÐ¹²ÓÐN¸ö½ÚµãµÄ»°£¬µ±ÓÐÐÂ½Úµã¼ÓÈë½øÀ´Ê±£¬ÄÑµÀ¶ÔÓÚÆäÖÐµÄÃ¿¸ö½Úµã£¬¶¼ÐèÒª·¢ËÍ
+ Ò»´Î¡±CLUSTER  MEET¡±ÃüÁî£¬¸Ã½Úµã²ÅÄÜ±»¼¯ÈºÖÐµÄÆäËû½ÚµãËùÈÏÊ¶Âð£¿µ±È»²»»áÕâÃ´×ö£¬Ö»ÒªÍ¨¹ýGossipÐ­Òé£¬
+ Ö»ÐèÏò¼¯ÈºÖÐµÄÈÎÒ»½Úµã·¢ËÍÃüÁî£¬ÐÂ½áµã¾ÍÄÜ¼ÓÈëµ½¼¯ÈºÖÐ£¬±»ÆäËûËùÓÐ½ÚµãËùÈÏÊ¶¡£
+
+    GossipÊÇ·Ö²¼Ê½ÏµÍ³ÖÐ±»¹ã·ºÊ¹ÓÃµÄÐ­Òé£¬ÆäÖ÷ÒªÓÃÓÚÊµÏÖ·Ö²¼Ê½½ÚµãÖ®¼äµÄÐÅÏ¢½»»»¡£GossipËã·¨ÈçÆäÃû£¬
+ Áé¸ÐÀ´×ÔÓÚ°ì¹«ÊÒ°ËØÔ£¬Ö»ÒªÒ»¸öÈË°ËØÔÒ»ÏÂ£¬ÔÚÓÐÏÞµÄÊ±¼äÄÚËùÓÐµÄÈË¶¼»áÖªµÀ¸Ã°ËØÔµÄÐÅÏ¢£¬Ò²¾ÍÊÇËù
+ Î½µÄ¡±Ò»´«Ê®£¬Ê®´«°Ù¡±¡£ÕâÖÖ·½Ê½Ò²Óë²¡¶¾´«²¥ÀàËÆ£¬Òò´ËGossipÓÐÖÚ¶àµÄ±ðÃû¡°ÏÐ»°Ëã·¨¡±¡¢¡°ÒßÇé´«
+ ²¥Ëã·¨¡±¡¢¡°²¡¶¾¸ÐÈ¾Ëã·¨¡±¡¢¡°Ò¥ÑÔ´«²¥Ëã·¨¡±¡£
+ 
+    GossipµÄÌØµãÊÇ£ºÔÚÒ»¸öÓÐ½çÍøÂçÖÐ£¬Ã¿¸ö½Úµã¶¼Ëæ»úµØÓëÆäËû½ÚµãÍ¨ÐÅ£¬¾­¹ýÒ»·¬ÔÓÂÒÎÞÕÂµÄÍ¨ÐÅ£¬×îÖÕ
+ ËùÓÐ½ÚµãµÄ×´Ì¬¶¼»á´ï³ÉÒ»ÖÂ¡£Ã¿¸ö½Úµã¿ÉÄÜÖªµÀËùÓÐÆäËû½Úµã£¬Ò²¿ÉÄÜ½öÖªµÀ¼¸¸öÁÚ¾Ó½Úµã£¬Ö»ÒªÕâÐ©½Ú¿ÉÒÔ
+ Í¨¹ýÍøÂçÁ¬Í¨£¬×îÖÕËûÃÇµÄ×´Ì¬¶¼ÊÇÒ»ÖÂµÄ£¬µ±È»ÕâÒ²ÊÇÒßÇé´«²¥µÄÌØµã¡£
+    GossipÊÇÒ»¸ö×îÖÕÒ»ÖÂÐÔËã·¨¡£ËäÈ»ÎÞ·¨±£Ö¤ÔÚÄ³¸öÊ±¿ÌËùÓÐ½Úµã×´Ì¬Ò»ÖÂ£¬µ«¿ÉÒÔ±£Ö¤ÔÚ¡±×îÖÕ¡°ËùÓÐ½Ú
+ µãÒ»ÖÂ£¬¡±×îÖÕ¡°ÊÇÒ»¸öÏÖÊµÖÐ´æÔÚ£¬µ«ÀíÂÛÉÏÎÞ·¨Ö¤Ã÷µÄÊ±¼äµã¡£µ«GossipµÄÈ±µãÒ²ºÜÃ÷ÏÔ£¬ÈßÓàÍ¨ÐÅ»á
+ ¶ÔÍøÂ·´ø¿í¡¢CPU×ÊÔ´Ôì³ÉºÜ´óµÄ¸ºÔØ¡£
+
+    ¾ßÌåµ½Redis¼¯ÈºÖÐ¶øÑÔ£¬Redis¼¯ÈºÖÐµÄÃ¿¸ö½Úµã£¬Ã¿¸ôÒ»¶ÎÊ±¼ä¾Í»áÏòÆäËû½Úµã·¢ËÍÐÄÌø°ü£¬ÐÄÌø°üÖÐ³ýÁË°ü
+ º¬×Ô¼ºµÄÐÅÏ¢Ö®Íâ£¬»¹»á°üº¬Èô¸ÉÎÒÈÏÊ¶µÄÆäËû½ÚµãµÄÐÅÏ¢£¬Õâ¾ÍÊÇËùÎ½µÄgossip²¿·Ö¡£
+    ½ÚµãÊÕµ½ÐÄÌø°üºó£¬»á¼ì²éÆäÖÐÊÇ·ñ°üº¬×Ô¼ºËù²»ÈÏÊ¶µÄ½Úµã£¬ÈôÓÐ£¬¾Í»áÏò¸Ã½Úµã·¢ÆðÎÕÊÖÁ÷³Ì¡£
+ ¾Ù¸öÀý×Ó£¬Èç¹û¼¯ÈºÖÐ£¬ÓÐA¡¢B¡¢C¡¢DËÄ¸ö½Úµã£¬AºÍBÏà»¥ÈÏÊ¶£¬CºÍDÏà»¥ÈÏÊ¶£¬´ËÊ±Ö»Òª¿Í»§¶ËÏòA·¢ËÍ¡± CLUSTER  MEET nodeC_ip  nodeC_port¡±ÃüÁî£¬
+ ÔòAÔÚÏò½ÚµãC·¢ËÍMEET°üÊ±£¬¸ÃMEET°üÖÐ»¹»á´øÓÐ½ÚµãBµÄÐÅÏ¢£¬CÊÕµ½¸ÃMEET°üºó£¬²»µ«ÈÏÊ¶ÁËA½Úµã£¬Ò²»áÈÏÊ¶B½Úµã¡£
+ Í¬Ñù£¬CºóÐøÔÚÏòAºÍB·¢ËÍPING°üÊ±£¬¸ÃPING°üÖÐÒ²»á´øÓÐ½ÚµãDµÄÐÅÏ¢£¬ÕâÑùAºÍBÒ²¾ÍÈÏÊ¶ÁËD½Úµã¡£Òò´Ë£¬¾­¹ýÒ»¶ÎÊ±
+ ¼äÖ®ºó£¬A¡¢B¡¢C¡¢DËÄ¸ö½Úµã¾ÍÏà»¥ÈÏÊ¶ÁË¡£
+*/
 
 #include "redis.h"
 #include "cluster.h"
@@ -53,26 +80,47 @@ CLUSTER NODES ÁÐ³ö¼¯Èºµ±Ç°ÒÑÖªµÄËùÓÐ½Úµã£¨node£©£¬ÒÔ¼°ÕâÐ©½ÚµãµÄÏà¹ØÐÅÏ¢¡£
 CLUSTER MEET <ip> <port> ½« ip ºÍ port ËùÖ¸¶¨µÄ½ÚµãÌí¼Óµ½¼¯Èºµ±ÖÐ£¬ÈÃËü³ÉÎª¼¯ÈºµÄÒ»·Ý×Ó¡£ 
 //Èç¹ûÄ³¸ö½Úµã¹ÒÁË£¬ÄÇÃ´½ÚµãÔÚ¼¯ÈºÖÐ±ê¼ÇÎªfail×´Ì¬£¬¿ÉÒÔÍ¨¹ýcluster forget°Ñ¸Ã½Úµã´Ó¼¯ÈºÖÐÒÆ³ý(cluster nodes¾Í¿´²»µ½¸Ã½ÚµãÁË)£¬²»¹ýÕâ¸ö½ÚµãÆðÀ´ºó»¹ÊÇ»á×Ô¶¯¼ÓÈë¸Ã¼¯ÈºµÄ
 CLUSTER REPLICATE <node_id> ½«µ±Ç°½ÚµãÉèÖÃÎª node_id Ö¸¶¨µÄ½ÚµãµÄ´Ó½Úµã¡£  
-CLUSTER FORGET <node_id> ´Ó¼¯ÈºÖÐÒÆ³ý node_id Ö¸¶¨µÄ½Úµã¡£
+CLUSTER FORGET <node_id> ´Ó¼¯ÈºÖÐÒÆ³ý node_id Ö¸¶¨µÄ½Úµã¡£  Èç¹ûÒª´Ó¼¯ÈºÖÐÒÆ³ý¸Ã½Úµã£¬ÐèÒªÏÈ¼¯ÈºÖÐµÄËùÓÐ½Úµã·¢ËÍcluster forget
 CLUSTER SAVECONFIG ½«½ÚµãµÄÅäÖÃÎÄ¼þ±£´æµ½Ó²ÅÌÀïÃæ¡£  
 ²Û(slot)  
 CLUSTER ADDSLOTS <slot> [slot ...] ½«Ò»¸ö»ò¶à¸ö²Û£¨slot£©Ö¸ÅÉ£¨assign£©¸øµ±Ç°½Úµã¡£  
 CLUSTER DELSLOTS <slot> [slot ...] ÒÆ³ýÒ»¸ö»ò¶à¸ö²Û¶Ôµ±Ç°½ÚµãµÄÖ¸ÅÉ¡£  
 CLUSTER FLUSHSLOTS ÒÆ³ýÖ¸ÅÉ¸øµ±Ç°½ÚµãµÄËùÓÐ²Û£¬ÈÃµ±Ç°½Úµã±ä³ÉÒ»¸öÃ»ÓÐÖ¸ÅÉÈÎºÎ²ÛµÄ½Úµã¡£  
+CLUSTER SLOTS  ²é¿´²ÛÎ»·Ö²¼
 
 CLUSTER SETSLOT <slot> NODE <node_id> ½«²Û slot Ö¸ÅÉ¸ø node_id Ö¸¶¨µÄ½Úµã£¬Èç¹û²ÛÒÑ¾­Ö¸ÅÉ¸øÁíÒ»¸ö½Úµã£¬ÄÇÃ´ÏÈÈÃÁíÒ»¸ö½ÚµãÉ¾³ý¸Ã²Û>£¬È»ºóÔÙ½øÐÐÖ¸ÅÉ¡£  
 CLUSTER SETSLOT <slot> MIGRATING <node_id> ½«±¾½ÚµãµÄ²Û slot Ç¨ÒÆµ½ node_id Ö¸¶¨µÄ½ÚµãÖÐ¡£  
 CLUSTER SETSLOT <slot> IMPORTING <node_id> ´Ó node_id Ö¸¶¨µÄ½ÚµãÖÐµ¼Èë²Û slot µ½±¾½Úµã¡£  
 CLUSTER SETSLOT <slot> STABLE È¡Ïû¶Ô²Û slot µÄµ¼Èë£¨import£©»òÕßÇ¨ÒÆ£¨migrate£©¡£  
-ÒÔÉÏÃüÁîÅäºÏMIGRATE host port key destination-db timeout½øÐÐ²ÛÎ»resharding
+ÒÔÉÏÃüÁîÅäºÏMIGRATE host port key destination-db timeout replace½øÐÐ²ÛÎ»resharding
+½ÚµãµÄ²ÛÎ»±ä»¯ÊÇÍ¨¹ýPING PONG¼¯Èº½Úµã½»»¥¹ã²¥µÄ£¬ÔÚclusterMsg->myslots[]ÖÐÐ¯´ø³öÈ¥£¬Ò²¿ÉÒÔÍ¨¹ýclusterSendUpdate(clusterMsgDataUpdate.slots)·¢ËÍ³öÈ¥
+
 ²Î¿¼ redisÉè¼ÆÓëÊµÏÖ µÚ17ÕÂ ¼¯Èº  17.4 ÖØÐÂ·ÖÆ¬
+redis-cli -c -h 192.168.1.100 -p 7000 cluster addslots {0..5000} Í¨¹ýredis-cliÉèÖÃslot·¶Î§£¬µ«ÊÇ²»ÄÜredis-cli½øÈëÃüÁîÐÐ£¬È»ºóÔÚcluster addslots {0..5000}
+127.0.0.1:7000> cluster addslots {0..5000}
+(error) ERR Invalid or out of range slot
+127.0.0.1:7000> quit
+[root@s10-2-4-4 yazhou.yang]# redis-cli -c  -p 7000 cluster addslots {0..5000}  ÕâÖÖÊµ¼ÊÉÏÊÇÓÉredis-cli°Ñ¸Ã·¶Î§Ìæ»»Îªcluster addslots 0 1 2 3 .. 5000À´·¢ËÍ¸øredisµÄ
+OK
+[root@s10-2-4-4 yazhou.yang]# 
+
 
 ¼ü  
 CLUSTER KEYSLOT <key> ¼ÆËã¼ü key Ó¦¸Ã±»·ÅÖÃÔÚÄÄ¸ö²ÛÉÏ¡£  
 CLUSTER COUNTKEYSINSLOT <slot> ·µ»Ø²Û slot Ä¿Ç°°üº¬µÄ¼üÖµ¶ÔÊýÁ¿¡£  
 CLUSTER GETKEYSINSLOT <slot> <count> ·µ»Ø count ¸ö slot ²ÛÖÐµÄ¼ü¡£
 
+//CLUSTER SLAVES <NODE ID> ´òÓ¡¸ø¶¨Ö÷½ÚµãµÄËùÓÐ´Ó½ÚµãµÄÐÅÏ¢ 
+//ÁíÍâ£¬Manual Failover·ÖforceºÍ·Çforce£¬Çø±ðÔÚÓÚ£º·ÇforceÐèÒªµÈ´Ó½ÚµãÍêÈ«Í¬²½ÍêÖ÷½ÚµãµÄÊý¾Ýºó²Å½øÐÐfailover£¬±£Ö¤²»¶ªÊ§Êý¾Ý£¬ÔÚÕâ¹ý³ÌÖÐ£¬Ô­Ö÷½ÚµãÍ£Ö¹Ð´²Ù×÷£»¶øforce²»½øÐÐ½øÐÐÊý¾ÝÍêÕûÍ¬²½£¬Ö±½Ó½øÐÐfailover¡£
+//CLUSTER FAILOVER [FORCE]  Ö´ÐÐÊÖ¶¯¹ÊÕÏ×ªÒÆ            Ö»ÄÜ·¢¸øslave
+//cluster set-config-epoch <epoch>ÃüÁîÇ¿ÖÆÉèÖÃconfigEpoch
+//CLUSTER RESET [SOFT|HARD]¼¯Èº¸´Î»£¬¸ÃÃüÁî±È½ÏÎ£ÏÕ
+
 ¼¯Èº×ÊÁÏ:http://carlosfu.iteye.com/blog/2254573   http://www.soso.io/article/68131.html
+*/
+
+/*
+¼¯Èº½ÚµãµôÏßÊÇÍ¨¹ýPING PONG µÈ±¨ÎÄ½»»¥¸ÐÖªµÄ£¬¶ø²»ÊÇÍ¨¹ýepoll errorÊ±¼ä¸ÐÖª
 */
 
 /* A global reference to myself is handy to make code more clear.
@@ -742,7 +790,7 @@ void clusterAcceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
  * However if the key contains the {...} pattern, only the part between
  * { and } is hashed. This may be useful in the future to force certain
  * keys to be in the same node (assuming no resharding is in progress). */
-    // ¼ÆËã¸ø¶¨¼üÓ¦¸Ã±»·ÖÅäµ½ÄÇ¸ö²Û
+    // ¼ÆËã¸ø¶¨¼üÓ¦¸Ã±»·ÖÅäµ½ÄÇ¸ö²Û   Èç¹ûkeyÖÐ°üº¬{},ÔòÖ»¶Ô{}ÖÐµÄ×Ö·û´®×öhash£¬ÀýÈçabccxx{DDDD}£¬ÔòÖ»»á¶ÔDDDD×öHASH
 unsigned int keyHashSlot(char *key, int keylen) {
     int s, e; /* start-end indexes of { and } */
 
@@ -1663,7 +1711,8 @@ void clusterProcessGossipSection(clusterMsg *hdr, clusterLink *link) {
              */
             if (sender &&
                 !(flags & REDIS_NODE_NOADDR) &&
-                !clusterBlacklistExists(g->nodename))
+                !clusterBlacklistExists(g->nodename)) 
+            //Èç¹û±¾½ÚµãÍ¨¹ýcluster forget°ÑÄ³¸ö½ÚµãÉ¾³ý±¾½Úµã¼¯ÈºµÄ»°£¬ÄÇÃ´Õâ¸ö±»É¾µÄ½ÚµãÐèÒªµÈºÚÃûµ¥¹ýÆÚºó±¾½Úµã²ÅÄÜ·¢ËÍhandshark
             {
                 clusterStartHandshake(g->ip,ntohs(g->port)); //ÕâÑù±¾µØ¾Í»á´´½¨Õâ¸ö²»´æÔÚµÄnode½ÚµãÁË£¬±¾µØÒ²¾ÍÓÐÁËsenderÀïÃæÓÐ£¬±¾µØÃ»ÓÐµÄ½ÚµãÁË
             }
@@ -1792,7 +1841,7 @@ void clusterSetNodeAsMaster(clusterNode *n) {
  * we receive the info via an UPDATE packet. 
  *
  * ¸ù¾ÝÇé¿ö£¬ sender ²ÎÊý¿ÉÒÔÊÇÏûÏ¢µÄ·¢ËÍÕß£¬Ò²¿ÉÒÔÊÇÏûÏ¢·¢ËÍÕßµÄÖ÷½Úµã¡£
- */
+ */ //½ÓÊÕµ½ÆäËû½ÚµãµÄPING PONG UPDATEÏûÏ¢ºó£¬Í¨¹ý¶Ô±ÈÅäÖÃ¼ÍÔª£¬¶Ô²ÛÎ»²¼¾Ö½øÐÐ¸üÐÂ
 void clusterUpdateSlotsConfigWith(clusterNode *sender, uint64_t senderConfigEpoch, unsigned char *slots) {
     int j;
     clusterNode *curmaster, *newmaster = NULL;
@@ -1838,28 +1887,31 @@ void clusterUpdateSlotsConfigWith(clusterNode *sender, uint64_t senderConfigEpoc
              *    greater configEpoch.
              * 2) We are not currently importing the slot. */
             if (server.cluster->slots[j] == NULL ||
-                server.cluster->slots[j]->configEpoch < senderConfigEpoch)
+                server.cluster->slots[j]->configEpoch < senderConfigEpoch) 
+            //sender·¢ËÍ¹ýÀ´µÄslotsÐÅÏ¢ºÍ±¾½Úµã±¾µØÈÏÎªµÄslotÐÅÏ¢ÓÐ³åÍ»£¬ÔòÒª°´ÕÕconfigEPOchÀ´ÅÐ¶Ï£¬ÅäºÏCLUSTER SETSLOT <SLOT> NODE <NODE ID>ÖÐclustercommandº¯ÊýÔÄ¶Á
             {
                 /* Was this slot mine, and still contains keys? Mark it as
                  * a dirty slot. */
                 if (server.cluster->slots[j] == myself &&
                     countKeysInSlot(j) &&
-                    sender != myself)
+                    sender != myself) //senderÈÏÎªj²ÛÎ»ÊôÓÚsender½Úµã£¬µ«ÊÇ±¾µØ¼ì²âµ½j²ÛÎ»ÓÖÊôÓÚ±¾½Úµã£¬³åÍ»ÁË!!!!
                 {
-                    dirty_slots[dirty_slots_count] = j;
+                    dirty_slots[dirty_slots_count] = j; //²ÛÎ»³åÍ»¼ÇÂ¼
                     dirty_slots_count++;
                 }
 
                  // ¸ºÔð²Û j µÄÔ­½ÚµãÊÇµ±Ç°½ÚµãµÄÖ÷½Úµã£¿              
                  // Èç¹ûÊÇµÄ»°£¬ËµÃ÷¹ÊÕÏ×ªÒÆ·¢ÉúÁË£¬½«µ±Ç°½ÚµãµÄ¸´ÖÆ¶ÔÏóÉèÖÃÎªÐÂµÄÖ÷½Úµã
-                if (server.cluster->slots[j] == curmaster)
+
+                 //Èç¹ûÒ»¸öÖ÷masterÏÂÃæÓÐ2¸ösavle£¬Èç¹ûmaster¹ÒÁË£¬Í¨¹ýÑ¡¾Ùslave1±»Ñ¡ÎªÐÂµÄÖ÷£¬Ôòslave2Í¨¹ýÕâÀïÀ´´¥·¢ÖØÐÂÁ¬½Óµ½ÐÂÖ÷£¬¼´slave1£¬Í¨¹ý²ÛÎ»±ä»¯À´¸ÐÖª£¬¼ûclusterUpdateSlotsConfigWith
+                if (server.cluster->slots[j] == curmaster) 
                     newmaster = sender;
 
                 // ½«²Û j ÉèÎªÎ´Ö¸ÅÉ
                 clusterDelSlot(j);
 
                  // ½«²Û j Ö¸ÅÉ¸ø sender
-                clusterAddSlot(sender,j);
+                clusterAddSlot(sender,j); //°Ñj²ÛÎ»Ö¸ÅÉ¸øsender
 
                 clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG|
                                      CLUSTER_TODO_UPDATE_STATE|
@@ -2059,7 +2111,7 @@ int clusterProcessPacket(clusterLink *link) { //cluster½ÚµãÖ®¼ä¼ì²âÖ÷ÒªµÄÁ½¸ö½»»
     /* Check if the sender is a known node. */
     // ²éÕÒ·¢ËÍÕß½Úµã  È·¶¨ÊÇÄÄ¸ö½Úµã·¢ËÍµÄ±¨ÎÄµ½±¾½Úµã
     sender = clusterLookupNode(hdr->sender);
-    // ½Úµã´æÔÚ£¬²¢ÇÒ²»ÊÇ HANDSHAKE ½Úµã    // ÄÇÃ´¸ö¸üÐÂ½ÚµãµÄÅäÖÃ¼ÍÔªÐÅÏ¢
+    // ½Úµã´æÔÚ£¬²¢ÇÒ²»ÊÇ HANDSHAKE ½Úµã    // ÄÇÃ´¸üÐÂ½ÚµãµÄÅäÖÃ¼ÍÔªÐÅÏ¢
     if (sender && !nodeInHandshake(sender)) {
         /* Update our curretEpoch if we see a newer epoch in the cluster. */
         senderCurrentEpoch = ntohu64(hdr->currentEpoch);
@@ -2082,9 +2134,12 @@ int clusterProcessPacket(clusterLink *link) { //cluster½ÚµãÖ®¼ä¼ì²âÖ÷ÒªµÄÁ½¸ö½»»
             nodeIsSlave(myself) &&
             myself->slaveof == sender &&
             hdr->mflags[0] & CLUSTERMSG_FLAG0_PAUSED &&
-            server.cluster->mf_master_offset == 0)
+            server.cluster->mf_master_offset == 0) 
+        //Ö÷ÔÚÊÕµ½´ÓµÄCLUSTERMSG_TYPE_MFSTART±¨ÎÄºó£¬Ö÷½øÈëfailover×´Ì¬£¬Ò²¾ÍÊÇmf_endÊ±¼ä´óÓÚ0£¬È»ºóÖ÷Í¨¹ý·¢ËÍPING±¨ÎÄµ½¸ÃslaveÀ´Ð¯´øÖ÷µÄoffset
         {
-            server.cluster->mf_master_offset = sender->repl_offset;
+            //´ÓÈ·¶¨Ö÷µÄoffset£¬¼ÇÂ¼ÏÂÀ´£¬ÔÚclusterHandleManualFailoverÖÐÅÐ¶ÏÊÖ¶¯cluster failoverÆÚ¼ä£¬´ÓÊÇ·ñ»ñÈ¡µ½ÁËÈ«²¿µÄÖ÷Êý¾Ý
+            server.cluster->mf_master_offset = sender->repl_offset; 
+            
             redisLog(REDIS_WARNING,
                 "Received replication offset for paused "
                 "master manual failover: %lld",
@@ -2552,15 +2607,24 @@ int clusterProcessPacket(clusterLink *link) { //cluster½ÚµãÖ®¼ä¼ì²âÖ÷ÒªµÄÁ½¸ö½»»
         }
 
     } else if (type == CLUSTERMSG_TYPE_MFSTART) {
+        /* ´Ó½ÚµãÍ¨¹ýCLUSTERMSG_TYPE_MFSTART±¨ÎÄÍ¨ÖªÖ÷½Úµã¿ªÊ¼½øÐÐÊÖ¶¯¹ÊÕÏ×ªÒÆ×¼±¸¹¤×÷£¬cluster failover */
         /* This message is acceptable only if I'm a master and the sender
          * is one of my slaves. */
         if (!sender || sender->slaveof != myself) return 1;
         /* Manual failover requested from slaves. Initialize the state
          * accordingly. */
         resetManualFailover();
+
+        /* 
+        mf_endÈç¹û¸ÃÖµ²»Îª0£¬ËµÃ÷ÔÚ½øÐÐÊÖ¶¯¹ÊÕÏ×ªÒÆ¹ý³ÌÖÐ£¬ÔÚ×éclusterBuildMessageHdr±¨ÎÄÍ·ÊÇ»áÐ¯´ø±êÊ¶CLUSTERMSG_FLAG0_PAUSED£¬
+        Í¬Ê±clusterRequestFailoverAuth»á´øÉÏCLUSTERMSG_FLAG0_FORCEACK±êÊ¶£¬Ò»Ö±µÈµ½manualFailoverCheckTimeoutÇå0¸ÃÖµ 
+        */
         server.cluster->mf_end = mstime() + REDIS_CLUSTER_MF_TIMEOUT;
         server.cluster->mf_slave = sender;
-        pauseClients(mstime()+(REDIS_CLUSTER_MF_TIMEOUT*2));
+        
+        //´ÓÊÕµ½cluster failover£¬¿ªÊ¼½øÐÐÇ¿ÖÆ¹ÊÕÏ×ªÒÆ£¬ÔòÖ÷½ÚµãÔÝÊ±×èÈû¿Í»§¶Ë×î¶àÇëÇó10sÖÓ½øÐÐÇ¿ÖÆ¹ÊÕÏ
+        //×ªÒÆ,ÕâÑù¿ÉÒÔ±£Ö¤Í¨¹ýoffsetÈÃ´Ó·þÎñÆ÷½ÓÊÕÍêÖ÷·þÎñÆ÷µÄ»º³åÇøÖÐµÄËùÓÐÊý¾Ý
+        pauseClients(mstime()+(REDIS_CLUSTER_MF_TIMEOUT*2)); 
         redisLog(REDIS_WARNING,"Manual failover requested by slave %.40s.",
             sender->name);
     } else if (type == CLUSTERMSG_TYPE_UPDATE) {
@@ -2859,7 +2923,7 @@ void clusterBuildMessageHdr(clusterMsg *hdr, int type) { //typeÈ¡ÖµCLUSTERMSG_TY
     hdr->offset = htonu64(offset); //±¾¼¸µã×Ô¼ºµÄ¸´ÖÆÆ«ÒÆÁ¿
 
     /* Set the message flags. */
-    if (nodeIsMaster(myself) && server.cluster->mf_end)
+    if (nodeIsMaster(myself) && server.cluster->mf_end) //Èç¹ûÔÚ½øÐÐcluster failoverÊÖ¶¯¹ÊÕÏ×ªÒÆ£¬Ôò´øÉÏ¸Ã±êÊ¶
         hdr->mflags[0] |= CLUSTERMSG_FLAG0_PAUSED;
 
     /* Compute the message length for certain messages. For other messages
@@ -3220,7 +3284,7 @@ void clusterSendFailoverAuth(clusterNode *node) {
 
 /* Send a MFSTART message to the specified node. */
 // Ïò¸ø¶¨µÄ½Úµã·¢ËÍÒ»Ìõ MFSTART ÏûÏ¢
-void clusterSendMFStart(clusterNode *node) {
+void clusterSendMFStart(clusterNode *node) { //µ±Í¨¹ýredis-cliÏòslave½Úµã·¢ËÍcluster failoverÊ±£¬´Ó½Úµã»á·¢ËÍCLUSTERMSG_TYPE_MFSTART¸ø×Ô¼ºµÄÖ÷½Úµã
     unsigned char buf[sizeof(clusterMsg)];
     clusterMsg *hdr = (clusterMsg*) buf;
     uint32_t totlen;
@@ -3301,7 +3365,7 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {//
     ²¢ÇÒÕâ²»ÊÇÊÖ¶¯Ç¿ÖÆ¿ªÊ¼µÄ¹ÊÕÏ×ªÒÆÁ÷³Ì£¬Ôò¸ù¾Ý²»Í¬µÄÌõ¼þ£¬¼ÇÂ¼ÈÕÖ¾ºóÖ±½Ó·µ»Ø£»
     */
     if (nodeIsMaster(node) || master == NULL ||
-        (!nodeFailed(master) && !force_ack)) {
+        (!nodeFailed(master) && !force_ack)) { //Èç¹û´Ó½ÓÊÕµ½cluster failover£¬È»ºó·¢Æðauth reqÒªÇóÍ¶Æ±£¬ÔòmasterÊÜµ½ºó£¬¾ÍÊÇ¸ÃmasterÔÚÏßÒ²ÐèÒª½øÐÐÍ¶Æ±
         if (nodeIsMaster(node)) { //auth  request±ØÐëÓÉslave·¢Æð
             redisLog(REDIS_WARNING,
                     "Failover auth denied to %.40s: it is a master node",
@@ -3521,7 +3585,7 @@ void clusterHandleSlaveFailover(void) { //clusterBeforeSleep¶ÔCLUSTER_TODO_HANDL
     int needed_quorum = (server.cluster->size / 2) + 1;
     //±íÊ¾ÊÇ·ñÊÇ¹ÜÀíÔ±ÊÖ¶¯´¥·¢µÄ¹ÊÕÏ×ªÒÆÁ÷³Ì£»
     int manual_failover = server.cluster->mf_end != 0 &&
-                          server.cluster->mf_can_start;
+                          server.cluster->mf_can_start; //ËµÃ÷Ïò´Ó·¢ËÍÁËcluster failover forceÒªÇó¸Ã´Ó½øÐÐÇ¿ÖÆ¹ÊÕÏ×ªÒÆ
     int j;
     //¸Ã±äÁ¿±íÊ¾¹ÊÕÏ×ªÒÆÁ÷³Ì(·¢ÆðÍ¶Æ±£¬µÈ´ý»ØÓ¦)µÄ³¬Ê±Ê±¼ä£¬³¬¹ý¸ÃÊ±¼äºó»¹Ã»ÓÐ»ñµÃ×ã¹»µÄÑ¡Æ±£¬Ôò±íÊ¾±¾´Î¹ÊÕÏ×ªÒÆÊ§°Ü£»
     mstime_t auth_timeout, 
@@ -3605,6 +3669,13 @@ void clusterHandleSlaveFailover(void) { //clusterBeforeSleep¶ÔCLUSTER_TODO_HANDL
 
     /* If the previous failover attempt timedout and the retry time has
      * elapsed, we can setup a new one. */
+
+    /*
+    ÀýÈç¼¯ÈºÓÐ7¸ömaster£¬ÆäÖÐredis1ÏÂÃæÓÐ2¸öslave,Í»È»redis1µôÁË£¬Ôòslave1ºÍslave2¾ºÕùÒªÇóÆäËû6¸ömaster½øÐÐÍ¶Æ±£¬Èç¹ûÕâ6¸ö
+    masterÍ¶Æ±¸øslave1ºÍslave2µÄÆ±Êý¶¼ÊÇ3£¬Ò²¾ÍÊÇ3¸ömasterÍ¶¸øÁËslave1,ÁíÍâ3¸ömasterÍ¶¸øÁËslave2£¬ÄÇÃ´Á½¸öslave¶¼µÃ²»µ½³¬¹ýÒ»°ë
+    µÄÆ±Êý£¬ÔòÖ»ÓÐ¿¿ÕâÀïµÄ³¬Ê±À´½øÐÐÖØÐÂÍ¶Æ±ÁË¡£²»¹ýÒ»°ëÕâÖÖÇé¿öºÜÉÙ·¢Éú£¬ÒòÎª·¢ÆðÍ¶Æ±µÄÊ±¼äÊÇËæ»úµÄ£¬Òò´ËÒ»°ëÒ»¸öslaveµÄÍ¶Æ±±¨ÎÄauth req»á±È
+    ÁíÒ»¸öslaveµÄÍ¶Æ±±¨ÎÄÏÈ·¢³ö¡£Ô½ÏÈ·¢³öÔ½ÈÝÒ×µÃµ½Í¶Æ±
+    */ 
     /*
     Èç¹ûauth_age´óÓÚauth_retry_time£¬±íÊ¾¿ÉÒÔ¿ªÊ¼½øÐÐÏÂÒ»´Î¹ÊÕÏ×ªÒÆÁË¡£Èç¹ûÖ®Ç°Ã»ÓÐ½øÐÐ¹ý¹ÊÕÏ×ªÒÆ£¬Ôòauth_ageµÈ
     ÓÚmstime£¬¿Ï¶¨´óÓÚauth_retry_time£»Èç¹ûÖ®Ç°½øÐÐ¹ý¹ÊÕÏ×ªÒÆ£¬ÔòÖ»ÓÐ¾àÀëÉÏÒ»´Î·¢Æð¹ÊÕÏ×ªÒÆÊ±£¬ÒÑ¾­³¬¹ý
@@ -3760,7 +3831,7 @@ void clusterHandleSlaveFailover(void) { //clusterBeforeSleep¶ÔCLUSTER_TODO_HANDL
         }
 
         /* 3) Update my configEpoch to the epoch of the election. */
-        // ¸üÐÂ¼¯ÈºÅäÖÃ¼ÍÔª  ±¾½Úµã´ÎÊýµÄÅäÖÃepoch¾ÍÊÇ¼¯ÈºÖÐ×î´óµÄconfigEpoch
+        // ¸üÐÂ¼¯ÈºÅäÖÃ¼ÍÔª  ±¾½Úµã´ËÊ±µÄÅäÖÃepoch¾ÍÊÇ¼¯ÈºÖÐ×î´óµÄconfigEpoch
         myself->configEpoch = server.cluster->failover_auth_epoch;
 
         /* 4) Update state and save config. */
@@ -3769,11 +3840,12 @@ void clusterHandleSlaveFailover(void) { //clusterBeforeSleep¶ÔCLUSTER_TODO_HANDL
         // ²¢±£´æÅäÖÃÎÄ¼þ
         clusterSaveConfigOrDie(1);
 
+        //Èç¹ûÒ»¸öÖ÷masterÏÂÃæÓÐ2¸ösavle£¬Èç¹ûmaster¹ÒÁË£¬Í¨¹ýÑ¡¾Ùslave1±»Ñ¡ÎªÐÂµÄÖ÷£¬Ôòslave2Í¨¹ýÕâÀïÀ´´¥·¢ÖØÐÂÁ¬½Óµ½ÐÂÖ÷£¬¼´slave1£¬¼ûclusterUpdateSlotsConfigWith
         /* 5) Pong all the other nodes so that they can update the state
          *    accordingly and detect that we switched to master role. */
         // ÏòËùÓÐ½Úµã·¢ËÍ PONG ÐÅÏ¢      
         // ÈÃËüÃÇ¿ÉÒÔÖªµÀµ±Ç°½ÚµãÒÑ¾­Éý¼¶ÎªÖ÷½ÚµãÁË      
-        clusterBroadcastPong(CLUSTER_BROADCAST_ALL);       
+        clusterBroadcastPong(CLUSTER_BROADCAST_ALL);  //ÕæÕý´¥·¢ÆäËû±¾À´ÊôÓÚÍ¬Ò»¸ömasterµÄslave½Úµã£¬Á¬½Óµ½Õâ¸öÐÂÑ¡¾Ù³öµÄmaster£¬ÊÇÔÚclusterUpdateSlotsConfigWith   
         /* 6) If there was a manual failover in progress, clear the state. */      
 
         // Èç¹ûÓÐÊÖ¶¯¹ÊÕÏ×ªÒÆÕýÔÚÖ´ÐÐ£¬ÄÇÃ´ÇåÀíºÍËüÓÐ¹ØµÄ×´Ì¬
@@ -3941,7 +4013,9 @@ void clusterHandleManualFailover(void) {
 
     if (server.cluster->mf_master_offset == 0) return; /* Wait for offset... */
 
-    if (server.cluster->mf_master_offset == replicationGetSlaveOffset()) {
+    if (server.cluster->mf_master_offset == replicationGetSlaveOffset()) { 
+//´Ó»ñÈ¡µ½Ö÷µÄÈ«²¿Êý¾ÝÁË£¬Ôò´Ó¿ÉÒÔ½øÐÐauth reqÒªÇóÆäËûmaster¶Ó×Ô¼ºÍ¶Æ±ÁË£¬×¢ÒâÕâÊ±ºò´ÓµÄÖ÷ÊÇÔÚÏßµÄ£¬
+//Òò´ËÐèÒªauth req±¨ÎÄ´øÉÏCLUSTERMSG_FLAG0_FORCEACK±êÊ¶£¬·ñÔòÆäËûmaster²»»áÍ¶Æ±£¬¼ûclusterSendFailoverAuthIfNeeded
         /* Our replication offset matches the master replication offset
          * announced after clients were paused. We can start the failover. */
         server.cluster->mf_can_start = 1;
@@ -4229,7 +4303,7 @@ void clusterCron(void) { //cluster½ÚµãÖ®¼ä¼ì²âÖ÷ÒªµÄÁ½¸ö½»»¥º¯ÊýÎªclusterProcess
             server.cluster->mf_slave == node &&
             node->link)
         {
-            clusterSendPing(node->link, CLUSTERMSG_TYPE_PING);
+            clusterSendPing(node->link, CLUSTERMSG_TYPE_PING); //°ÑÖ÷·þÎñÆ÷µÄoffsetÐ¯´ø¹ýÈ¥£¬±£Ö¤´Ó½ÓÊÜÈ«²¿µÄÊý¾Ý£¬±£Ö¤Êý¾Ý²»¶ª
             continue;
         }
 
@@ -4859,21 +4933,26 @@ http://blog.csdn.net/dc_726/article/details/48552531
 ¼¯Èº  
 CLUSTER INFO ´òÓ¡¼¯ÈºµÄÐÅÏ¢  
 CLUSTER NODES ÁÐ³ö¼¯Èºµ±Ç°ÒÑÖªµÄËùÓÐ½Úµã£¨node£©£¬ÒÔ¼°ÕâÐ©½ÚµãµÄÏà¹ØÐÅÏ¢¡£  
+
 ½Úµã  
 CLUSTER MEET <ip> <port> ½« ip ºÍ port ËùÖ¸¶¨µÄ½ÚµãÌí¼Óµ½¼¯Èºµ±ÖÐ£¬ÈÃËü³ÉÎª¼¯ÈºµÄÒ»·Ý×Ó¡£  
-CLUSTER FORGET <node_id> ´Ó¼¯ÈºÖÐÒÆ³ý node_id Ö¸¶¨µÄ½Úµã¡£  
+CLUSTER FORGET <node_id> ´Ó¼¯ÈºÖÐÒÆ³ý node_id Ö¸¶¨µÄ½Úµã¡£Èç¹ûÒª´Ó¼¯ÈºÖÐÒÆ³ý¸Ã½Úµã£¬ÐèÒªÏÈ¼¯ÈºÖÐµÄËùÓÐ½Úµã·¢ËÍcluster forget  
 CLUSTER REPLICATE <node_id> ½«µ±Ç°½ÚµãÉèÖÃÎª node_id Ö¸¶¨µÄ½ÚµãµÄ´Ó½Úµã¡£   CLUSTER REPLICATE  ×¢ÒâºÍslaveofµÄÇø±ð£¬slaveof²»ÄÜÓÃÓÚcluster,¼ûslaveofCommand
 CLUSTER SAVECONFIG ½«½ÚµãµÄÅäÖÃÎÄ¼þ±£´æµ½Ó²ÅÌÀïÃæ¡£  
 ²Û(slot)  
 CLUSTER ADDSLOTS <slot> [slot ...] ½«Ò»¸ö»ò¶à¸ö²Û£¨slot£©Ö¸ÅÉ£¨assign£©¸øµ±Ç°½Úµã¡£  
 CLUSTER DELSLOTS <slot> [slot ...] ÒÆ³ýÒ»¸ö»ò¶à¸ö²Û¶Ôµ±Ç°½ÚµãµÄÖ¸ÅÉ¡£  
 CLUSTER FLUSHSLOTS ÒÆ³ýÖ¸ÅÉ¸øµ±Ç°½ÚµãµÄËùÓÐ²Û£¬ÈÃµ±Ç°½Úµã±ä³ÉÒ»¸öÃ»ÓÐÖ¸ÅÉÈÎºÎ²ÛµÄ½Úµã¡£  
+CLUSTER SLOTS  ²é¿´²ÛÎ»·Ö²¼
 
 CLUSTER SETSLOT <slot> NODE <node_id> ½«²Û slot Ö¸ÅÉ¸ø node_id Ö¸¶¨µÄ½Úµã£¬Èç¹û²ÛÒÑ¾­Ö¸ÅÉ¸øÁíÒ»¸ö½Úµã£¬ÄÇÃ´ÏÈÈÃÁíÒ»¸ö½ÚµãÉ¾³ý¸Ã²Û>£¬È»ºóÔÙ½øÐÐÖ¸ÅÉ¡£  
 CLUSTER SETSLOT <slot> MIGRATING <node_id> ½«±¾½ÚµãµÄ²Û slot Ç¨ÒÆµ½ node_id Ö¸¶¨µÄ½ÚµãÖÐ¡£  
 CLUSTER SETSLOT <slot> IMPORTING <node_id> ´Ó node_id Ö¸¶¨µÄ½ÚµãÖÐµ¼Èë²Û slot µ½±¾½Úµã¡£  
 CLUSTER SETSLOT <slot> STABLE È¡Ïû¶Ô²Û slot µÄµ¼Èë£¨import£©»òÕßÇ¨ÒÆ£¨migrate£©¡£  
-ÒÔÉÏÃüÁîÅäºÏMIGRATE host port key destination-db timeout½øÐÐ²ÛÎ»resharding
+ÒÔÉÏÃüÁîÅäºÏMIGRATE host port key destination-db timeout replace½øÐÐ²ÛÎ»reshardingºÍÊý¾ÝÇ¨ÒÆ
+
+½ÚµãµÄ²ÛÎ»±ä»¯ÊÇÍ¨¹ýPING PONG¼¯Èº½Úµã½»»¥¹ã²¥µÄ£¬ÔÚclusterMsg->myslots[]ÖÐÐ¯´ø³öÈ¥£¬Ò²¿ÉÒÔÍ¨¹ýclusterSendUpdate(clusterMsgDataUpdate.slots)·¢ËÍ³öÈ¥
+
 ²Î¿¼ redisÉè¼ÆÓëÊµÏÖ µÚ17ÕÂ ¼¯Èº  17.4 ÖØÐÂ·ÖÆ¬
 redis-cli -c -h 192.168.1.100 -p 7000 cluster addslots {0..5000} Í¨¹ýredis-cliÉèÖÃslot·¶Î§£¬µ«ÊÇ²»ÄÜredis-cli½øÈëÃüÁîÐÐ£¬È»ºóÔÚcluster addslots {0..5000}
 127.0.0.1:7000> cluster addslots {0..5000}
@@ -4890,10 +4969,16 @@ CLUSTER KEYSLOT <key> ¼ÆËã¼ü key Ó¦¸Ã±»·ÅÖÃÔÚÄÄ¸ö²ÛÉÏ¡£
 CLUSTER COUNTKEYSINSLOT <slot> ·µ»Ø²Û slot Ä¿Ç°°üº¬µÄ¼üÖµ¶ÔÊýÁ¿¡£  
 CLUSTER GETKEYSINSLOT <slot> <count> ·µ»Ø count ¸ö slot ²ÛÖÐµÄ¼ü¡£
 
+//CLUSTER SLAVES <NODE ID> ´òÓ¡¸ø¶¨Ö÷½ÚµãµÄËùÓÐ´Ó½ÚµãµÄÐÅÏ¢ 
+//ÁíÍâ£¬Manual Failover·ÖforceºÍ·Çforce£¬Çø±ðÔÚÓÚ£º·ÇforceÐèÒªµÈ´Ó½ÚµãÍêÈ«Í¬²½ÍêÖ÷½ÚµãµÄÊý¾Ýºó²Å½øÐÐfailover£¬±£Ö¤²»¶ªÊ§Êý¾Ý£¬ÔÚÕâ¹ý³ÌÖÐ£¬Ô­Ö÷½ÚµãÍ£Ö¹Ð´²Ù×÷£»¶øforce²»½øÐÐ½øÐÐÊý¾ÝÍêÕûÍ¬²½£¬Ö±½Ó½øÐÐfailover¡£
+//CLUSTER FAILOVER [FORCE]  Ö´ÐÐÊÖ¶¯¹ÊÕÏ×ªÒÆ       Ö»ÄÜ·¢¸øslave  
+//cluster set-config-epoch <epoch>ÃüÁîÇ¿ÖÆÉèÖÃconfigEpoch
+//CLUSTER RESET [SOFT|HARD]¼¯Èº¸´Î»£¬¸ÃÃüÁî±È½ÏÎ£ÏÕ
+
 ¼¯Èº×ÊÁÏ:http://carlosfu.iteye.com/blog/2254573
 */
 
-// CLUSTER ÃüÁîµÄÊµÏÖ
+//CLUSTER ÃüÁîµÄÊµÏÖ
 void clusterCommand(redisClient *c) {   
 // ²»ÄÜÔÚ·Ç¼¯ÈºÄ£Ê½ÏÂÊ¹ÓÃ¸ÃÃüÁî
 
@@ -5055,7 +5140,7 @@ void clusterCommand(redisClient *c) {
         clusterNode *n;
 
          // È¡³ö slot Öµ
-        if ((slot = getSlotOrReply(c,c->argv[2])) == -1) return;
+        if ((slot = getSlotOrReply(c,c->argv[2])) == -1) return; //´ÓÕâÀï¿´³öÒ»´ÎÖ»ÄÜ½øÐÐÒ»¸ö²ÛÎ»²Ù×÷£¬Èç¹ûÒª¶à´Î²ÛÎ»´¦Àí£¬ÔòÐèÒª¹¤¾ß×Ô¼ºÊµÏÖ¶à´ÎÃüÁîµ÷ÓÃ
 
         // CLUSTER SETSLOT <slot> MIGRATING <node id>
         // ½«±¾½ÚµãµÄ²Û slot Ç¨ÒÆÖÁ node id ËùÖ¸¶¨µÄ½Úµã
@@ -5155,7 +5240,11 @@ void clusterCommand(redisClient *c) {
                 if (myself->configEpoch == 0 ||
                     myself->configEpoch != maxEpoch)
                 {
-                    server.cluster->currentEpoch++;
+                    server.cluster->currentEpoch++; 
+                /* Èç¹ûimportingÊý¾ÝµÄÄ¿µÄ½Úµã(A->B,B½Úµã)µÄepoch²»ÊÇ¼¯ÈºÖÐ×î´óµÄ£¬ÕâÀïÐèÒª°Ñ¸Ã½Úµãepoll±äÎª¼¯ÈºÖÐ×î´óµÄ¼Ó1£¬
+                Ä¿µÄÊÇ±£Ö¤±¾½ÚµãÐÅÏ¢Í¨¹ýPING PONG·¢ËÍµ½ÆäËû½ÚµãµÄÊ±ºò£¬ÆäËû½Úµã·¢ÏÖ±¾½Úµãepoll×î´ó£¬ÓÚÊÇ²Å»á¸üÐÂslotsÎ»Í¼
+                 ¼ûclusterUpdateSlotsConfigWith
+                */
                     myself->configEpoch = server.cluster->currentEpoch;
                     clusterDoBeforeSleep(CLUSTER_TODO_FSYNC_CONFIG);
                     redisLog(REDIS_WARNING,
@@ -5387,9 +5476,13 @@ void clusterCommand(redisClient *c) {
         clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
         addReply(c,shared.ok);
     } else if (!strcasecmp(c->argv[1]->ptr,"slaves") && c->argc == 3) {
-        /* CLUSTER SLAVES <NODE ID> */
+        /* CLUSTER SLAVES <NODE ID> ´òÓ¡¸ø¶¨Ö÷½ÚµãµÄËùÓÐ´Ó½ÚµãµÄÐÅÏ¢*/
           // ´òÓ¡¸ø¶¨Ö÷½ÚµãµÄËùÓÐ´Ó½ÚµãµÄÐÅÏ¢
 
+        //CLUSTER SLAVES <NODE ID> ´òÓ¡¸ø¶¨Ö÷½ÚµãµÄËùÓÐ´Ó½ÚµãµÄÐÅÏ¢ 
+        //CLUSTER FAILOVER [FORCE]  Ö´ÐÐÊÖ¶¯¹ÊÕÏ×ªÒÆ
+        //cluster set-config-epoch <epoch>ÃüÁîÇ¿ÖÆÉèÖÃconfigEpoch
+        //CLUSTER RESET [SOFT|HARD]¼¯Èº¸´Î»£¬¸ÃÃüÁî±È½ÏÎ£ÏÕ
         clusterNode *n = clusterLookupNode(c->argv[2]->ptr);
         int j;
 
@@ -5413,8 +5506,28 @@ void clusterCommand(redisClient *c) {
     } else if (!strcasecmp(c->argv[1]->ptr,"failover") &&
                (c->argc == 2 || c->argc == 3))
     {
-        /* CLUSTER FAILOVER [FORCE] */
-         // Ö´ÐÐÊÖ¶¯¹ÊÕÏ×ªÒÆ
+        /* CLUSTER FAILOVER [FORCE]  Ö»ÄÜ·¢¸øslave */
+        // Ö´ÐÐÊÖ¶¯¹ÊÕÏ×ªÒÆ
+        /*
+        Manual FailoverÊÇÒ»ÖÖÔËÎ¬¹¦ÄÜ£¬ÔÊÐíÊÖ¶¯ÉèÖÃ´Ó½ÚµãÎªÐÂµÄÖ÷½Úµã£¬¼´Ê¹Ö÷½Úµã»¹»î×Å¡£
+
+        ÁíÍâ£¬Manual Failover·ÖforceºÍ·Çforce£¬Çø±ðÔÚÓÚ£º·ÇforceÐèÒªµÈ´Ó½ÚµãÍêÈ«Í¬²½ÍêÖ÷½ÚµãµÄÊý¾Ýºó²Å½øÐÐfailover£¬±£Ö¤²»¶ª
+        Ê§Êý¾Ý£¬ÔÚÕâ¹ý³ÌÖÐ£¬Ô­Ö÷½ÚµãÍ£Ö¹Ð´²Ù×÷£»¶øforce²»½øÐÐ½øÐÐÊý¾ÝÍêÕûÍ¬²½£¬Ö±½Ó½øÐÐfailover¡£
+
+        ÊÖ¶¯¹ÊÕÏ×ªÒÆ
+            Redis¼¯ÈºÖ§³ÖÊÖ¶¯¹ÊÕÏ×ªÒÆ¡£Ò²¾ÍÊÇÏò´Ó½Úµã·¢ËÍ¡±CLUSTER  FAILOVER¡±ÃüÁî£¬Ê¹ÆäÔÚÖ÷½ÚµãÎ´ÏÂÏßµÄÇé¿öÏÂ£¬
+         ·¢Æð¹ÊÕÏ×ªÒÆÁ÷³Ì£¬Éý¼¶ÎªÐÂµÄÖ÷½Úµã£¬¶øÔ­À´µÄÖ÷½Úµã½µ¼¶Îª´Ó½Úµã¡£
+         ÎªÁË²»¶ªÊ§Êý¾Ý£¬Ïò´Ó½Úµã·¢ËÍ¡±CLUSTER  FAILOVER¡±ÃüÁî(²»´øfource)ºó£¬Á÷³ÌÈçÏÂ£º
+         a£º´Ó½ÚµãÊÕµ½ÃüÁîºó£¬ÏòÖ÷½Úµã·¢ËÍCLUSTERMSG_TYPE_MFSTART°ü£»
+         b£ºÖ÷½ÚµãÊÕµ½¸Ã°üºó£¬»á½«ÆäËùÓÐ¿Í»§¶ËÖÃÓÚ×èÈû×´Ì¬£¬Ò²¾ÍÊÇÔÚ10sµÄÊ±¼äÄÚ£¬²»ÔÙ´¦Àí¿Í»§¶Ë·¢À´µÄÃüÁî£»²¢ÇÒÔÚÆä·¢ËÍµÄÐÄÌø°üÖÐ£¬»á´øÓÐCLUSTERMSG_FLAG0_PAUSED±ê¼Ç£»
+         c£º´Ó½ÚµãÊÕµ½Ö÷½Úµã·¢À´µÄ£¬´øCLUSTERMSG_FLAG0_PAUSED±ê¼ÇµÄÐÄÌø°üºó£¬´ÓÖÐ»ñÈ¡Ö÷½Úµãµ±Ç°µÄ¸´ÖÆÆ«ÒÆÁ¿¡£´Ó½ÚµãµÈµ½×Ô¼ºµÄ¸´ÖÆÆ«ÒÆÁ¿´ïµ½¸ÃÖµºó£¬²Å»á¿ªÊ¼Ö´ÐÐ¹ÊÕÏ×ªÒÆÁ÷³Ì£º·¢ÆðÑ¡¾Ù¡¢Í³¼ÆÑ¡Æ±¡¢Ó®µÃÑ¡¾Ù¡¢Éý¼¶ÎªÖ÷½Úµã²¢¸üÐÂÅäÖÃ£»
+ 
+         ¡±CLUSTER  FAILOVER¡±ÃüÁîÖ§³ÖÁ½¸öÑ¡Ïî£ºFORCEºÍ²»´øforece¡£Ê¹ÓÃÕâÁ½¸öÑ¡Ïî£¬¿ÉÒÔ¸Ä±äÉÏÊöµÄÁ÷³Ì¡£
+         Èç¹ûÓÐFORCEÑ¡Ïî£¬Ôò´Ó½Úµã²»»áÓëÖ÷½Úµã½øÐÐ½»»¥£¬Ö÷½ÚµãÒ²²»»á×èÈûÆä¿Í»§¶Ë£¬¶øÊÇ´Ó½ÚµãÁ¢¼´¿ªÊ¼¹ÊÕÏ×ªÒÆÁ÷³Ì£º·¢ÆðÑ¡¾Ù¡¢Í³¼ÆÑ¡Æ±¡¢Ó®µÃÑ¡¾Ù¡¢Éý¼¶ÎªÖ÷½Úµã²¢¸üÐÂÅäÖÃ¡£
+
+         Òò´Ë£¬Ê¹ÓÃFORCEÑ¡Ïî£¬Ö÷½Úµã¿ÉÒÔÒÑ¾­ÏÂÏß£»¶ø²»Ê¹ÓÃÈÎºÎÑ¡Ïî£¬Ö»·¢ËÍ¡±CLUSTER  FAILOVER¡±ÃüÁîµÄ»°£¬Ö÷½Úµã±ØÐëÔÚÏß¡£
+        */
+        
         int force = 0;
 
         if (c->argc == 3) {
@@ -5441,9 +5554,9 @@ void clusterCommand(redisClient *c) {
             return;
         }
 
-       // ÖØÖÃÊÖ¶¯¹ÊÕÏ×ªÒÆµÄÓÐ¹ØÊôÐÔ      
-       resetManualFailover();       
-       // Éè¶¨ÊÖ¶¯¹ÊÕÏ×ªÒÆµÄ×î´óÖ´ÐÐÊ±ÏÞ
+        // ÖØÖÃÊÖ¶¯¹ÊÕÏ×ªÒÆµÄÓÐ¹ØÊôÐÔ      
+        resetManualFailover();       
+        // Éè¶¨ÊÖ¶¯¹ÊÕÏ×ªÒÆµÄ×î´óÖ´ÐÐÊ±ÏÞ
         server.cluster->mf_end = mstime() + REDIS_CLUSTER_MF_TIMEOUT;
 
         /* If this is a forced failover, we don't need to talk with our master
@@ -5451,7 +5564,7 @@ void clusterCommand(redisClient *c) {
          * coordination. */
          // Èç¹ûÕâÊÇÇ¿ÖÆµÄÊÖ¶¯ failover £¬ÄÇÃ´Ö±½Ó¿ªÊ¼ failover £¬      
          // ÎÞÐëÏòÆäËû master ¹µÍ¨Æ«ÒÆÁ¿¡£       
-         if (force) {        
+        if (force) {        
             // Èç¹ûÕâÊÇÇ¿ÖÆµÄÊÖ¶¯¹ÊÕÏ×ªÒÆ£¬ÄÇÃ´Ö±½Ó¿ªÊ¼Ö´ÐÐ¹ÊÕÏ×ªÒÆ²Ù×÷        
             server.cluster->mf_can_start = 1;      
         } else {           
@@ -5522,6 +5635,22 @@ void clusterCommand(redisClient *c) {
     }
 }
 
+
+/*
+DUMPÐòÁÐ»¯  restore·´ÐòÁÐ»¯£¬ÆäÊµ¾ÍÊÇÐÂÔöÁËÐ£Ñé¹¦ÄÜ
+
+10.2.4.5:7001> set yang 11111
+OK
+10.2.4.5:7001> DUMP yang
+"\x00\xc1g+\x06\x00}\xb0\xa0\xe2+\xa7\x91\a"
+10.2.4.5:7001> RESTORE yangxx 0 "\x00\xc1g+\x06\x00}\xb0\xa0\xe2+\xa7\x91\a"
+OK
+10.2.4.5:7001> get yang xx
+(error) ERR wrong number of arguments for 'get' command
+10.2.4.5:7001> get yangxx
+"11111"
+10.2.4.5:7001> 
+*/
 /* -----------------------------------------------------------------------------
  * DUMP, RESTORE and MIGRATE commands
  * -------------------------------------------------------------------------- */
@@ -5651,6 +5780,24 @@ redis> DUMP not-exists-key
 (nil)
 */
 
+/*
+DUMPÐòÁÐ»¯  restore·´ÐòÁÐ»¯£¬ÆäÊµ¾ÍÊÇÐÂÔöÁËÐ£Ñé¹¦ÄÜ
+
+10.2.4.5:7001> set yang 11111
+OK
+10.2.4.5:7001> DUMP yang
+"\x00\xc1g+\x06\x00}\xb0\xa0\xe2+\xa7\x91\a"
+10.2.4.5:7001> RESTORE yangxx 0 "\x00\xc1g+\x06\x00}\xb0\xa0\xe2+\xa7\x91\a"
+OK
+10.2.4.5:7001> get yang xx
+(error) ERR wrong number of arguments for 'get' command
+10.2.4.5:7001> get yangxx
+"11111"
+10.2.4.5:7001> 
+*/
+
+
+//Ö´ÐÐ DUMP ÃüÁî £¬½«ËüÐòÁÐ»¯£¬È»ºó´«ËÍµ½Ä¿±êÊµÀý£¬Ä¿±êÊµÀýÔÙÊ¹ÓÃ RESTORE ¶ÔÊý¾Ý½øÐÐ·´ÐòÁÐ»¯
 /* DUMP keyname
  * DUMP is actually not used by Redis Cluster but it is the obvious
  * complement of RESTORE and can be useful for different applications. */
@@ -5735,9 +5882,28 @@ redis> RESTORE fake-message 0 "hello moto moto blah blah"
 
 
 */
+
+/*
+DUMPÐòÁÐ»¯  restore·´ÐòÁÐ»¯£¬ÆäÊµ¾ÍÊÇÐÂÔöÁËÐ£Ñé¹¦ÄÜ
+
+10.2.4.5:7001> set yang 11111
+OK
+10.2.4.5:7001> DUMP yang
+"\x00\xc1g+\x06\x00}\xb0\xa0\xe2+\xa7\x91\a"
+10.2.4.5:7001> RESTORE yangxx 0 "\x00\xc1g+\x06\x00}\xb0\xa0\xe2+\xa7\x91\a"
+OK
+10.2.4.5:7001> get yang xx
+(error) ERR wrong number of arguments for 'get' command
+10.2.4.5:7001> get yangxx
+"11111"
+10.2.4.5:7001> 
+*/
+
+//*select 0 +  (RESTORE-ASKING | RESTORE) + KEY-VALUE-EXPIRE + dumpÐòÁÐ»¯value + [replace]   ¶ÔÓ¦restoreCommand¶Ô¸ÃKV½øÐÐÐòÁÐ»¯»¹Ô­
+
 /* RESTORE key ttl serialized-value [REPLACE] */
 // ¸ù¾Ý¸ø¶¨µÄ DUMP Êý¾Ý£¬»¹Ô­³öÒ»¸ö¼üÖµ¶ÔÊý¾Ý£¬²¢½«Ëü±£´æµ½Êý¾Ý¿âÀïÃæ
-void restoreCommand(redisClient *c) {
+void restoreCommand(redisClient *c) { //migrateCommandºÍrestoreCommand¶ÔÓ¦
     long long ttl;
     rio payload;
     int j, type, replace = 0;
@@ -5826,13 +5992,20 @@ void restoreCommand(redisClient *c) {
 
 #define MIGRATE_SOCKET_CACHE_TTL 10 /* close cached socekts after 10 sec. */
 
-typedef struct migrateCachedSocket {
+/*
+»º´æÁ¬½Ó:
+    ÒòÎªÒ»°ãÇé¿öÏÂ£¬ÊÇÐèÒª½«¶à¸ökey´ÓAÇ¨ÒÆµ½BÖÐ£¬ÎªÁË±ÜÃâAºÍBÖ®¼äÐèÒª¶à´ÎTCP½¨Á´£¬ÕâÀï²ÉÓÃÁË»º´æÁ¬½Ó
+µÄÊµÏÖ·½·¨¡£¾ßÌå¶øÑÔ£¬µ±Ç¨ÒÆµÚÒ»¸ökeyÊ±£¬½ÚµãAÏò½ÚµãB½¨Á´£¬²¢½«¸ÃTCPÁ´½Ó»º´æÆðÀ´£¬Ò»¶¨Ê±¼äÄÚ£¬µ±ÐèÒª
+Ç¨ÒÆÏÂÒ»¸ökeyÊ±£¬¿ÉÒÔÖ±½ÓÊ¹ÓÃ»º´æµÄÁ´½Ó£¬¶øÎÞÐèÖØ¸´½¨Á´¡£»º´æµÄÁ´½ÓÈç¹û³¤Ê±¼ä²»ÓÃ£¬Ôò»á×Ô¶¯ÊÍ·Å¡£
+*/
+typedef struct migrateCachedSocket { //´æ´¢ÔÚmigrate_cached_sockets
 
     // Ì×½Ó×ÖÃèÊö·û   
     int fd;    
 
+    //ÉÏÒ»´ÎÊ¹ÓÃµÄÄ¿µÄ½ÚµãµÄÊý¾Ý¿âID£¬ÒÔ¼°¸ÃÁ´½ÓÉÏÒ»´Î±»Ê¹ÓÃµÄÊ±¼ä¡£
     // ×îºóÒ»´ÎÊ¹ÓÃµÄÊ±¼ä
-    time_t last_use_time;
+    time_t last_use_time; //¸ÃÁ´½ÓÈç¹ûÒ»¶¨Ê±¼ä¶¼Ã»ÓÃµÄ»°£¬Ôò»áÊÍ·ÅÁ´½Ó£¬¼ûmigrateCloseTimedoutSockets
 
 } migrateCachedSocket;
 
@@ -5858,13 +6031,20 @@ typedef struct migrateCachedSocket {
  * ÄÇÃ´µ÷ÓÃÕß»áÊ¹ÓÃ migrateCloseSocket() À´¹Ø±Õ³ö´íµÄÌ×½Ó×Ö£¬
  * ÕâÑùÏÂ´ÎÒªÁ¬½ÓÏàÍ¬µØÖ·Ê±£¬·þÎñÆ÷¾Í»á´´½¨ÐÂµÄÌ×½Ó×ÖÀ´½øÐÐÁ¬½Ó¡£
  */
+
+/*
+»º´æÁ¬½Ó
+    ÒòÎªÒ»°ãÇé¿öÏÂ£¬ÊÇÐèÒª½«¶à¸ökey´ÓAÇ¨ÒÆµ½BÖÐ£¬ÎªÁË±ÜÃâAºÍBÖ®¼äÐèÒª¶à´ÎTCP½¨Á´£¬ÕâÀï²ÉÓÃÁË»º´æ
+ Á¬½ÓµÄÊµÏÖ·½·¨¡£¾ßÌå¶øÑÔ£¬µ±Ç¨ÒÆµÚÒ»¸ökeyÊ±£¬½ÚµãAÏò½ÚµãB½¨Á´£¬²¢½«¸ÃTCPÁ´½Ó»º´æÆðÀ´£¬Ò»¶¨Ê±
+ ¼äÄÚ£¬µ±ÐèÒªÇ¨ÒÆÏÂÒ»¸ökeyÊ±£¬¿ÉÒÔÖ±½ÓÊ¹ÓÃ»º´æµÄÁ´½Ó£¬¶øÎÞÐèÖØ¸´½¨Á´¡£»º´æµÄÁ´½ÓÈç¹û³¤Ê±¼ä²»ÓÃ£¬Ôò»á×Ô¶¯ÊÍ·Å¡£
+*/
 int migrateGetSocket(redisClient *c, robj *host, robj *port, long timeout) {
     int fd;
     sds name = sdsempty();
     migrateCachedSocket *cs;
 
     /* Check if we have an already cached socket for this ip:port pair. */
-    // ¸ù¾Ý ip ºÍ port ´´½¨µØÖ·Ãû×Ö
+    // ¸ù¾Ý ip ºÍ port ´´½¨µØÖ·Ãû×Ö  nameÊÇip:port×Ö·û´®
     name = sdscatlen(name,host->ptr,sdslen(host->ptr));
     name = sdscatlen(name,":",1);
     name = sdscatlen(name,port->ptr,sdslen(port->ptr));
@@ -5919,7 +6099,7 @@ int migrateGetSocket(redisClient *c, robj *host, robj *port, long timeout) {
     cs = zmalloc(sizeof(*cs));
     cs->fd = fd;
     cs->last_use_time = server.unixtime;
-    dictAdd(server.migrate_cached_sockets,name,cs);
+    dictAdd(server.migrate_cached_sockets,name,cs); 
 
     return fd;
 }
@@ -6053,12 +6233,13 @@ CLUSTER SETSLOT <slot> MIGRATING <node_id> ½«±¾½ÚµãµÄ²Û slot Ç¨ÒÆµ½ node_id Ö¸¶¨
 CLUSTER SETSLOT <slot> IMPORTING <node_id> ´Ó node_id Ö¸¶¨µÄ½ÚµãÖÐµ¼Èë²Û slot µ½±¾½Úµã¡£  
 CLUSTER SETSLOT <slot> STABLE È¡Ïû¶Ô²Û slot µÄµ¼Èë£¨import£©»òÕßÇ¨ÒÆ£¨migrate£©¡£  
 
-ÒÔÉÏÃüÁîÅäºÏMIGRATE host port key destination-db timeout½øÐÐ²ÛÎ»resharding
+ÒÔÉÏÃüÁîÅäºÏMIGRATE host port key destination-db timeout replace½øÐÐ²ÛÎ»resharding
 ²Î¿¼ redisÉè¼ÆÓëÊµÏÖ µÚ17ÕÂ ¼¯Èº  17.4 ÖØÐÂ·ÖÆ¬
 */
 
 /* MIGRATE host port key dbid timeout [COPY | REPLACE] */
-void migrateCommand(redisClient *c) {
+void migrateCommand(redisClient *c) {  //migrateCommandºÍrestoreCommand¶ÔÓ¦
+    //*select 0 +  (RESTORE-ASKING | RESTORE) + KEY-VALUE-EXPIRE + dumpÐòÁÐ»¯value + [replace]   ¶ÔÓ¦restoreCommand¶Ô¸ÃKV½øÐÐÐòÁÐ»¯»¹Ô­
     int fd, copy, replace, j;
     long timeout;
     long dbid;
@@ -6074,6 +6255,8 @@ try_again:
     ttl = 0;
 
     /* Parse additional options */
+    /* COPY £º²»ÒÆ³ýÔ´ÊµÀýÉÏµÄkey¡£  REPLACE £ºÌæ»»Ä¿±êÊµÀýÉÏÒÑ´æÔÚµÄ key ¡£ */
+    
     // ¶ÁÈë COPY »òÕß REPLACE Ñ¡Ïî
     for (j = 6; j < c->argc; j++) {
         if (!strcasecmp(c->argv[j]->ptr,"copy")) {
@@ -6097,6 +6280,9 @@ try_again:
     /* Check if the key is here. If not we reply with success as there is
      * nothing to migrate (for instance the key expired in the meantime), but
      * we include such information in the reply string. */
+     /*
+     È»ºó´Ó¿Í»§¶Ëµ±Ç°Á¬½ÓµÄÊý¾Ý¿âÖÐ£¬²éÕÒkey£¬µÃµ½ÆäÖµ¶ÔÏóo¡£Èç¹ûÕÒ²»µ½key£¬Ôò»Ø¸´¸ø¿Í»§¶Ë"+NOKEY"£¬Õâ²»ËãÊÇ´íÎó£¬ÒòÎª¿ÉÄÜ¸Ãkey¸ÕºÃ³¬Ê±±»É¾³ýÁË£»
+     */
      // È¡³ö¼üµÄÖµ¶ÔÏó
     if ((o = lookupKeyRead(c->db,c->argv[3])) == NULL) {
         addReplySds(c,sdsnew("+NOKEY\r\n"));
@@ -6108,6 +6294,17 @@ try_again:
     fd = migrateGetSocket(c,c->argv[1],c->argv[2],timeout);
     if (fd == -1) return; /* error sent to the client by migrateGetSocket() */
 
+    /*
+    ¿ªÊ¼¹¹½¨Òª·¢ËÍ¸øÔ¶¶ËRedisµÄRESTOREÃüÁî£ºÊ×ÏÈ³õÊ¼»¯rio½á¹¹µÄcmd£¬¸Ã½á¹¹ÖÐ¼ÇÂ¼Òª·¢ËÍµÄÃüÁî£»Èç¹ûÃüÁî²Î
+    ÊýÖÐµÄdbid£¬ÓëÉÏ´ÎÇ¨ÒÆÊ±µÄdbid²»Í¬£¬ÔòÐèÒªÊ×ÏÈÏòcmdÖÐÌî³ä"SELECT  <dbid>"ÃüÁî£»È»ºóÈ¡µÃ¸ÃkeyµÄ³¬Ê±Ê±
+    ¼äexpireat£¬½«Æä×ª»»ÎªÏà¶ÔÊ±¼ättl£»Èç¹ûµ±Ç°´¦ÓÚ¼¯ÈºÄ£Ê½ÏÂ£¬ÔòÏòcmdÖÐÌî³ä"RESTORE-ASKING"ÃüÁî£¬·ñÔòÌî
+    ³ä"RESTORE"ÃüÁî£»È»ºóÏòcmdÖÐÌî³äkey£¬ÒÔ¼°ttl£»È»ºóµ÷ÓÃcreateDumpPayloadº¯Êý£¬½«Öµ¶ÔÏóo£¬°´ÕÕDUMPµÄ¸ñ
+    Ê½Ìî³äµ½payloadÖÐ£¬È»ºóÔÙ½«payloadÌî³äµ½cmdÖÐ£»Èç¹û×îºóÒ»¸öÃüÁî²ÎÊýÊÇREPLACE£¬Ôò»¹ÐèÒªÌî³ä"REPLACE"
+    µ½cmdÖÐ£»
+    */
+
+    //*select 0 +  (RESTORE-ASKING | RESTORE) + KEY-VALUE-EXPIRE + dumpÐòÁÐ»¯value + [replace]  ¶ÔÓ¦restoreCommand¶Ô¸ÃKV½øÐÐÐòÁÐ»¯»¹Ô­
+    
     /* Create RESTORE payload and generate the protocol to call the command. */
     // ´´½¨ÓÃÓÚÖ¸¶¨Êý¾Ý¿âµÄ SELECT ÃüÁî£¬ÒÔÃâ¼üÖµ¶Ô±»»¹Ô­µ½ÁË´íÎóµÄµØ·½
     rioInitWithBuffer(&cmd,sdsempty());
@@ -6121,8 +6318,11 @@ try_again:
     if (expireat != -1) {
         ttl = expireat-mstime();
         if (ttl < 1) ttl = 1;
-    }
-    redisAssertWithInfo(c,NULL,rioWriteBulkCount(&cmd,'*',replace ? 5 : 4));
+    } 
+
+    //Èç¹ûÐ¯´øreplace£¬Ôò*ºóÃæÓÐ5¸ö²ÎÊý£¬ key value expire restore»òÕßrestore-asking replace,Èç¹ûÎª4Ã»ÓÐreplace
+    redisAssertWithInfo(c,NULL,rioWriteBulkCount(&cmd,'*',replace ? 5 : 4)); 
+    
 
      // Èç¹ûÔËÐÐÔÚ¼¯ÈºÄ£Ê½ÏÂ£¬ÄÇÃ´·¢ËÍµÄÃüÁîÎª RESTORE-ASKING    
      // Èç¹ûÔËÐÐÔÚ·Ç¼¯ÈºÄ£Ê½ÏÂ£¬ÄÇÃ´·¢ËÍµÄÃüÁîÎª RESTORE
@@ -6141,7 +6341,7 @@ try_again:
     /* Emit the payload argument, that is the serialized object using
      * the DUMP format. */
      // ½«Öµ¶ÔÏó½øÐÐÐòÁÐ»¯   
-     createDumpPayload(&payload,o);    
+     createDumpPayload(&payload,o); //oÎªvalueÖµ¶ÔÏó
      // Ð´ÈëÐòÁÐ»¯¶ÔÏó
     redisAssertWithInfo(c,NULL,rioWriteBulkString(&cmd,payload.io.buffer.ptr,
                                 sdslen(payload.io.buffer.ptr)));
@@ -6162,7 +6362,8 @@ try_again:
         size_t pos = 0, towrite;
         int nwritten = 0;
 
-        while ((towrite = sdslen(buf)-pos) > 0) {
+        //×¢ÒâÕâÀïÊÇ×èÈûÊ½µÄÐ´£¬Ò»Ö±µÈµ½°ÑÊý¾ÝÐ´Íê»òÕßÐ´Òì³£
+        while ((towrite = sdslen(buf)-pos) > 0) { //Ò»´Î×î¶à·¢ËÍ64KÊý¾Ý£¬Ö»µ½·¢ËÍÍê³É
             towrite = (towrite > (64*1024) ? (64*1024) : towrite);
             nwritten = syncWrite(fd,buf+pos,towrite,timeout);
             if (nwritten != (signed)towrite) goto socket_wr_err;
@@ -6189,20 +6390,20 @@ try_again:
             // Ö´ÐÐ³ö´í¡£¡£¡£
 
             addReplyErrorFormat(c,"Target instance replied with error: %s",
-                (buf1[0] == '-') ? buf1+1 : buf2+1);
+                (buf1[0] == '-') ? buf1+1 : buf2+1);//¸ÃkvÇ¨ÒÆÍê³É£¬Ïò·¢ËÍmigrateÃüÁîµÄ¿Í»§¶ËÇ¨ÒÆ¹¤¾ß·¢ËÍERRORÐÅÏ¢
         } else {
 
             // Ö´ÐÐ³É¹¦¡£¡£¡£
 
             robj *aux;
 
-            // Èç¹ûÃ»ÓÐÖ¸¶¨ COPY Ñ¡Ïî£¬ÄÇÃ´É¾³ý±¾»úÊý¾Ý¿âÖÐµÄ¼ü
+            // Èç¹ûÃ»ÓÐÖ¸¶¨ COPY Ñ¡Ïî£¬ÄÇÃ´É¾³ý±¾»úÊý¾Ý¿âÖÐµÄ¼ü     ·µ»Ø³É¹¦ºó²Å»áÔÚ±¾½ÚµãÉ¾³ý¸ÃKEY£¬ËùÒÔ²»´æÔÚKEY¶ªµôµÄÇé¿ö
             if (!copy) {
                 /* No COPY option: remove the local key, signal the change. */
                 dbDelete(c->db,c->argv[3]);
                 signalModifiedKey(c->db,c->argv[3]);
             }
-            addReply(c,shared.ok);
+            addReply(c,shared.ok); //¸ÃkvÇ¨ÒÆÍê³É£¬Ïò·¢ËÍmigrateÃüÁîµÄ¿Í»§¶ËÇ¨ÒÆ¹¤¾ß·¢ËÍOK
             server.dirty++;
 
             /* Translate MIGRATE as DEL for replication/AOF. */
@@ -6381,7 +6582,9 @@ clusterNode *getNodeByQuery(redisClient *c, struct redisCommand *cmd, robj **arg
                  * error). To do so we set the importing/migrating state and
                  * increment a counter for every missing key. */
                 if (n == myself &&
-                    server.cluster->migrating_slots_to[slot] != NULL)
+                    server.cluster->migrating_slots_to[slot] != NULL) 
+     //²ÛslotÒÑ¾­´¦ÓÚÇ¨ÒÆÖÁserver.cluster->migrating_slots_to[slot]½Úµã»òÕßimporting½ÚµãµÄ¹ý³ÌÖÐ£¬ÔòÈç¹ûÄ³¸ökey·¢ËÍµ½ÁË±¾½Úµã£¬
+     //Ôò¸æËß¶Ô·½ask server.cluster->migrating_slots_to[slot],Ò²¾ÍÊÇ¸ÃkeyµÄ²Ù×÷Ó¦¸Ã·ÅÈëµ½Õâ¸öÐÂµÄÄ¿µÄ½ÚµãÖÐ£¬¼ûgetNodeByQuery
                 {
                     migrating_slot = 1;
                 } else if (server.cluster->importing_slots_from[slot] != NULL) {

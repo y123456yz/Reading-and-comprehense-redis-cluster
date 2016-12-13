@@ -211,6 +211,7 @@ void feedReplicationBacklogWithObject(robj *o) {
 // 2） 将协议内容备份到 backlog
 // 3） 将内容发送给各个从服务器
 void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
+//从slave和master的通讯还是通过连接主的listen端口，例如listen为7000，则集群见的端口就是17000，但是从是和7000通讯
     listNode *ln;
     listIter li;
     int j, len;
@@ -2524,7 +2525,7 @@ Slave每隔1秒向Master发送”REPLCONF” “ACK” “数字(slave_repl_offset)”
 
         /* First, send PING */
         // 向所有已连接 slave （状态为 ONLINE）发送 PING
-        ping_argv[0] = createStringObject("PING",4);
+        ping_argv[0] = createStringObject("PING",4); //发送的是PING字符串，而不是集群节点之间的CLUSTERMSG_TYPE_PING报文
         replicationFeedSlaves(server.slaves, server.slaveseldb, ping_argv, 1);
         decrRefCount(ping_argv[0]);
 
@@ -2622,3 +2623,4 @@ Slave每隔1秒向Master发送”REPLCONF” “ACK” “数字(slave_repl_offset)”
     // 更新符合给定延迟值的从服务器的数量
     refreshGoodSlavesCount();
 }
+

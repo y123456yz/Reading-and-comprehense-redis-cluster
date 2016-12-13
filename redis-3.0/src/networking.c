@@ -1556,7 +1556,7 @@ void processInputBuffer(redisClient *c) {
 
         /* Return if clients are paused. */
         // 如果客户端正处于暂停状态，那么直接返回
-        if (!(c->flags & REDIS_SLAVE) && clientsArePaused()) return;
+        if (!(c->flags & REDIS_SLAVE) && clientsArePaused()) return;//正在进行cluster failover手动故障转移，processInputBuffer->clientsArePaused会暂停处理客户端请求
 
         /* Immediately abort if the client is in the middle of something. */
         // REDIS_BLOCKED 状态表示客户端正在被阻塞
@@ -2218,7 +2218,8 @@ void flushSlavesOutputBuffers(void) {
  * left duration. */
 // 暂停客户端，让服务器在指定的时间内不再接受被暂停客户端发来的命令
 // 可以用于系统更新，并在内部由 CLUSTER FAILOVER 命令使用。
-void pauseClients(mstime_t end) {
+void pauseClients(mstime_t end) { 
+//主收到slave的CLUSTERMSG_TYPE_MFSTART后，置clients_paused=1, 主暂停处理所有客户端的请求，知道pause超时时间到，见clientsArePaused
 
     // 设置暂停时间
     if (!server.clients_paused || end > server.clients_pause_end_time)
@@ -2231,8 +2232,9 @@ void pauseClients(mstime_t end) {
 /* Return non-zero if clients are currently paused. As a side effect the
  * function checks if the pause time was reached and clear it. */
  // 判断服务器目前被暂停客户端的数量，没有任何客户端被暂停时，返回 0 。
-int clientsArePaused(void) {
-    if (server.clients_paused && server.clients_pause_end_time < server.mstime) {
+int clientsArePaused(void) {//和clientsArePaused配合  
+//正在进行cluster failover手动故障转移，processInputBuffer->clientsArePaused会暂停处理客户端请求
+    if (server.clients_paused && server.clients_pause_end_time < server.mstime) { //client设置的阻塞时间到，则清除该状态标识可以继续接受客户端请求了
         listNode *ln;
         listIter li;
         redisClient *c;
@@ -2249,6 +2251,7 @@ int clientsArePaused(void) {
             listAddNodeTail(server.unblocked_clients,c);
         }
     }
+    
     return server.clients_paused;
 }
 

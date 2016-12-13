@@ -65,12 +65,14 @@ ssize_t syncWrite(int fd, char *ptr, ssize_t size, long long timeout) {
             ptr += nwritten;
             size -= nwritten;
         }
-        if (size == 0) return ret;
+
+        // ????这里应该有个bug,例如我的KV很大，例如10M，migrateCommand中调用该函数write的时候对方redis阻塞了，就会造成本套接字内核协议栈满，返回EAGAIN
+        if (size == 0) return ret; 
 
         /* Wait */
         aeWait(fd,AE_WRITABLE,wait);
         elapsed = mstime() - start;
-        if (elapsed >= timeout) {
+        if (elapsed >= timeout) { //在write上花费的时间超过了timeout
             errno = ETIMEDOUT;
             return -1;
         }

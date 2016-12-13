@@ -738,7 +738,7 @@ typedef struct redisObject {
      */
     // LRU 时间（相对于 server.lruclock） OBJECT IDLETIME 命令可以打印出给定键的空转时长， 这一空转时长就是通过将当前时间减去键的值对象的 lru 时间计算得出的
     // 对象最后一次被访问的时间  // 该属性记录了对象最后一次被命令程序访问的时间： 10s统计一次
-    unsigned lru:REDIS_LRU_BITS; /* lru time (relative to server.lruclock) */
+    unsigned lru:REDIS_LRU_BITS; /* lru time (relative to server.lruclock) */ //每次访问KV，只要没有正在进行fork rdb或者aof操作，就会更新,见lookupKey
 
     /*
      incrRefCount 将对象的引用计数值增一。 
@@ -1470,14 +1470,15 @@ struct redisServer {//struct redisServer server;
     redisClient *current_client; /* Current client, only used on crash report */
 
     int clients_paused;         /* True if clients are currently paused */
+    //主接收到slave的CLUSTERMSG_TYPE_MFSTART，更新REDIS_CLUSTER_MF_TIMEOUT*2
+    //当队该主的从进行强制故障转移cluster failover的时候，主暂时阻塞客户端请求这么多时间已进行强制故障转移，保证主的数据完全同步给从，见pauseClients
     mstime_t clients_pause_end_time; /* Time when we undo clients_paused */
 
     // 网络错误
     char neterr[ANET_ERR_LEN];   /* Error buffer for anet.c */
 
-    // MIGRATE 缓存
-    dict *migrate_cached_sockets;/* MIGRATE cached sockets */
-
+    // MIGRATE 缓存  存储的是KV，K为ip:port字符串，V为套接字信息该ip port对应的套接字信息server.migrateCachedSocket中
+    dict *migrate_cached_sockets;/* MIGRATE cached sockets */ //该dict上最多只能有MIGRATE_SOCKET_CACHE_ITEMS个套接字信息，见migrateGetSocket
 
     /* RDB / AOF loading information */
 
@@ -1941,6 +1942,11 @@ saveparams属性是一个数组，数组中的每个元素都是一个saveparam结构，每个saveparam结
     //如果内存超过该值，当继续set的时候会打印shared.oomerr
     unsigned long long maxmemory;   /* Max number of memory bytes to use */
     int maxmemory_policy;           /* Policy for key eviction */
+    //maxmemory-samples中配置
+    /*
+    清理时会根据用户配置的maxmemory-policy来做适当的清理（一般是LRU或TTL），这里的LRU或TTL策略并不是针对redis的所有key，
+    而是以配置文件中的maxmemory-samples个key作为样本池进行抽样清理。
+    */
     int maxmemory_samples;          /* Pricision of random sampling */
 
 

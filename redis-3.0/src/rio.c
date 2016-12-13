@@ -161,7 +161,7 @@ static off_t rioFileTell(rio *r) {
 
 /*
  * 流为内存时所使用的结构
- */
+ */ //rdb aof文件加载写入初始化为rioFileIO      DUMP, RESTORE and MIGRATE的时候用rioBufferIO
 static const rio rioBufferIO = {
     // 读函数
     rioBufferRead,
@@ -178,7 +178,7 @@ static const rio rioBufferIO = {
 
 /*
  * 流为文件时所使用的结构
- */
+ */ //rdb aof文件加载写入初始化为rioFileIO      DUMP, RESTORE and MIGRATE的时候用rioBufferIO
 static const rio rioFileIO = {
     // 读函数
     rioFileRead,
@@ -208,7 +208,7 @@ void rioInitWithFile(rio *r, FILE *fp) {
  */
 void rioInitWithBuffer(rio *r, sds s) {
     *r = rioBufferIO;
-    r->io.buffer.ptr = s;
+    r->io.buffer.ptr = s; //rioInitWithBuffer(&cmd,sdsempty());
     r->io.buffer.pos = 0;
 }
 

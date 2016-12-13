@@ -258,7 +258,7 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     每个master的configEpoch必须不同，当发生配置冲突以后，采用高版本的配置。通过多次交互后，集群中每个节点的configEpoch
     会不同，如果没有配置set-config-epoch的话，各个节点的clusterNode.configEpoch分别为0 - n,例如3个节点，则每个节点分别对应
     0 1 2，可以通过cluster node中connected前的数值查看
-    */ //赋值见clusterHandleConfigEpochCollision  clusterProcessPacket clusterHandleSlaveFailover,真正生效的地方在clusterSendFailoverAuthIfNeeded，在该函数中进行判断
+    */ //赋值见clusterHandleConfigEpochCollision  clusterProcessPacket clusterHandleSlaveFailover,真正生效的地方在clusterSendFailoverAuthIfNeeded clusterUpdateSlotsConfigWith，在该函数中进行判断
     uint64_t configEpoch; /* Last configEpoch observed for this node */
 
     // 由这个节点负责处理的槽
@@ -403,23 +403,37 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
 
     // 节点黑名单，用于 CLUSTER FORGET 命令
     // 防止被 FORGET 的命令重新被添加到集群里面
-    // （不过现在似乎没有在使用的样子，已废弃？还是尚未实现？）
+    // （不过现在似乎没有在使用的样子，已废弃？还是尚未实现？） 
+    //如果本节点通过cluster forget把某个节点删除本节点集群的话，那么这个被删的节点需要等黑名单过期后本节点才能发送handshark
     dict *nodes_black_list; /* Nodes we don't re-add for a few seconds. */
+
+    //槽slot已经处于迁移至server.cluster->migrating_slots_to[slot]节点或者importing节点的过程中，则如果某个key发送到了本节点，
+     //则告诉对方ask server.cluster->migrating_slots_to[slot],也就是该key的操作应该放入到这个新的目的节点中，见getNodeByQuery
 
     // 记录要从当前节点迁移到目标节点的槽，以及迁移的目标节点
     // migrating_slots_to[i] = NULL 表示槽 i 未被迁移
     // migrating_slots_to[i] = clusterNode_A 表示槽 i 要从本节点迁移至节点 A
+
+    //源节点槽位数据迁移完后，向迁移数据的源节点发送CLUSTER SETSLOT <SLOT> NODE <NODE ID>会把migrating_slots_to置为NULL，或者clusterDelNode中置为NULL
     clusterNode *migrating_slots_to[REDIS_CLUSTER_SLOTS];
+
+    //槽slot已经处于迁移至server.cluster->migrating_slots_to[slot]节点或者importing节点的过程中，则如果某个key发送到了本节点，
+    //则告诉对方ask server.cluster->migrating_slots_to[slot],也就是该key的操作应该放入到这个新的目的节点中，见getNodeByQuery
 
     // 记录要从源节点迁移到本节点的槽，以及进行迁移的源节点
     // importing_slots_from[i] = NULL 表示槽 i 未进行导入
     // importing_slots_from[i] = clusterNode_A 表示正从节点 A 中导入槽 i
-    clusterNode *importing_slots_from[REDIS_CLUSTER_SLOTS];
+
+    //CLUSTER SETSLOT <SLOT> STABLE会置为NULL，或者向迁移的目的节点发送CLUSTER SETSLOT <SLOT> NODE <NODE ID>也会置为NULL，或者clusterDelNode中置为NULL
+    clusterNode *importing_slots_from[REDIS_CLUSTER_SLOTS]; 
+    
 
     // 负责处理各个槽的节点
     // 例如 slots[i] = clusterNode_A 表示槽 i 由节点 A 处理
     clusterNode *slots[REDIS_CLUSTER_SLOTS];
 
+    /* ClusterState结构体中的slots_to_keys跳跃表，该跳跃表中，以槽位号为分数进行排序。每个跳跃表节点保
+    存了槽位号(分数)，以及该槽位上的某个key。通过该跳跃表，可以快速得到当前节点所负责的每一个槽位中，都有哪些key。*/
     // 跳跃表，表中以槽作为分值，键作为成员，对槽进行有序排序
     // 当需要对某些槽进行区间（range）操作时，这个跳跃表可以提供方便
     // 具体操作定义在 db.c 里面
@@ -444,6 +458,8 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     // 上次执行选举或者下次执行选举的时间
     mstime_t failover_auth_time; /* Time of previous or next election. */
 
+    /* ???????如果两个从节点获取到相同的投票数，该怎么办??????  */
+
     // 节点获得的投票数量  本slave接收到其他master的CLUSTERMSG_TYPE_FAILOVER_AUTH_ACK消息后，failover_auth_count++，见clusterProcessPacket
     int failover_auth_count;    /* Number of votes received so far. */
 
@@ -463,20 +479,29 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
                                    failover. See the CANT_FAILOVER_* macros. */
 
     /* Manual failover state in common. */
-    /* 共用的手动故障转移状态 */
-
+    /* 共用的手动故障转移状态 */ 
+    
+    //A是B的master，给B发送cluster failover的时候，B会更新mf_end时间，然后发送CLUSTERMSG_TYPE_MFSTART给A，A收到后也会更新mf_end超时时间，超时后在manualFailoverCheckTimeout处理
     // 手动故障转移执行的时间限制    CLUSTER FAILOVER命令会触发进行手动故障转移，见clusterCommand
+
+    //如果该值不为0，说明在进行手动故障转移过程中，在组clusterBuildMessageHdr报文头是会携带标识CLUSTERMSG_FLAG0_PAUSED，同时
+    //clusterRequestFailoverAuth会带上CLUSTERMSG_FLAG0_FORCEACK标识，一直等到manualFailoverCheckTimeout清0该值
     mstime_t mf_end;            /* Manual failover time limit (ms unixtime).
                                    It is zero if there is no MF in progress. */
     /* Manual failover state of master. */
-    /* 主服务器的手动故障转移状态 */
+    /* 主服务器的手动故障转移状态 */  
+    //指向接收cluster failover [fore]命令的从节点，例如A是B的主节点，B收到cluster failover后，发送CLUSTERMSG_TYPE_MFSTART给A，A就会记录B节点到mf_slave中
     clusterNode *mf_slave;      /* Slave performing the manual failover. */
     /* Manual failover state of slave. */
-    /* 从服务器的手动故障转移状态 */
+    /* 从服务器的手动故障转移状态 */ 
+   //主在收到从的CLUSTERMSG_TYPE_MFSTART报文后，主进入failover状态，也就是mf_end时间大于0，然后主通过发送PING报文到该slave来携带主的offset
+   //从收到后，在clusterProcessPacket更新主的offset记录到mf_master_offset，当从接受完全部主的数据后，和主offset会一致，通过clusterHandleManualFailover判断
     long long mf_master_offset; /* Master offset the slave needs to start MF
                                    or zero if stil not received. */
     // 指示手动故障转移是否可以开始的标志值
-    // 值为非 0 时表示各个主服务器可以开始投票
+    // 值为非 0 时表示各个主服务器可以开始投票   
+    //CLUSTER FAILOVER [FORCE] 带有force进行强制手动故障转移是在clusterCommand中置1，
+    //或者强制手动故障转移过程中master数据完全发送到slave则在clusterHandleManualFailover中置1，表示slave开始进行auth req要求其他主投票
     int mf_can_start;           /* If non-zero signal that the manual failover
                                    can start requesting masters vote. */
 
@@ -561,12 +586,14 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
 #define CLUSTERMSG_TYPE_PUBLISH 4       /* Pub/Sub Publish propagation */
 // 请求进行故障转移操作，要求消息的接收者通过投票来支持消息的发送者  从节点通过clusterRequestFailoverAuth发送failover request，但是只有master才会回复
 // 必须由slave发起
+//如果一个主master下面有2个savle，如果master挂了，通过选举slave1被选为新的主，则slave2通过这里来触发重新连接到新主，即slave1，通过槽位变化来感知，见clusterUpdateSlotsConfigWith
 #define CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST 5 /* May I failover? */ //CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST和CLUSTERMSG_TYPE_FAILOVER_AUTH_ACK对应
 // 消息的接收者同意向消息的发送者投票 
 #define CLUSTERMSG_TYPE_FAILOVER_AUTH_ACK 6     /* Yes, you have my vote */
 // 槽布局已经发生变化，消息发送者要求消息接收者进行相应的更新    通过clusterBuildMessageHdr组包发送
 #define CLUSTERMSG_TYPE_UPDATE 7        /* Another node slots configuration */
-// 为了进行手动故障转移，暂停各个客户端
+// 为了进行手动故障转移，暂停各个客户端  
+//当通过redis-cli向slave节点发送cluster failover时，从节点会发送CLUSTERMSG_TYPE_MFSTART给自己的主节点,主节点收到后进行故障转移初始化相关处理
 #define CLUSTERMSG_TYPE_MFSTART 8       /* Pause clients for manual failover */
 
 /* Initially we don't know our "name", but we'll find it once we connect
@@ -739,7 +766,7 @@ typedef struct { //内部通信直接通过该结构发送，解析该结构在clusterProcessPacket
     // 消息发送者所处集群的状态
     unsigned char state; /* Cluster state from the POV of the sender */
 
-    // 消息标志   取值CLUSTERMSG_FLAG0_PAUSED等
+    // 消息标志   取值CLUSTERMSG_FLAG0_PAUSED、CLUSTERMSG_FLAG0_FORCEACK等
     unsigned char mflags[3]; /* Message flags: CLUSTERMSG_FLAG[012]_... */
 
     // 消息的正文（或者说，内容）
@@ -751,6 +778,8 @@ typedef struct { //内部通信直接通过该结构发送，解析该结构在clusterProcessPacket
 
 /* Message flags better specify the packet content or are used to
  * provide some information about the node state. */
+
+//clusterBuildMessageHdr 当进行cluster failover手动故障转移的时候，在发送PING PONG MEET等会带上该标识
 #define CLUSTERMSG_FLAG0_PAUSED (1<<0) /* Master paused for manual failover. */
 #define CLUSTERMSG_FLAG0_FORCEACK (1<<1) /* Give ACK to AUTH_REQUEST even if
                                             master is up. */

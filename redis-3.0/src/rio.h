@@ -39,7 +39,7 @@
 /*
  * RIO API 接口和状态
  */
-struct _rio {
+struct _rio { //rdb aof文件加载写入初始化为rioFileIO       DUMP, RESTORE and MIGRATE的时候用rioBufferIO
 
     /* Backend functions.
      * Since this functions do not tolerate short writes or reads the return
@@ -88,7 +88,7 @@ struct _rio {
     } io;
 };
 
-typedef struct _rio rio; //初始化为rioFileIO
+typedef struct _rio rio; //rdb aof文件加载写入初始化为rioFileIO      DUMP, RESTORE and MIGRATE的时候用rioBufferIO
 
 /* The following functions are our interface with the stream. They'll call the
  * actual implementation of read / write / tell, and will update the checksum
@@ -98,8 +98,8 @@ typedef struct _rio rio; //初始化为rioFileIO
  * 将 buf 中的 len 字节写入到 r 中。
  *
  * 写入成功返回实际写入的字节数，写入失败返回 -1 。
- */
-static inline size_t rioWrite(rio *r, const void *buf, size_t len) {
+ */  //rdb aof文件加载写入初始化为rioFileIO      DUMP, RESTORE and MIGRATE的时候用rioBufferIO
+static inline size_t rioWrite(rio *r, const void *buf, size_t len) { //rioFileWrite  rioBufferWrite
     while (len) {
         size_t bytes_to_write = (r->max_processing_chunk && r->max_processing_chunk < len) ? r->max_processing_chunk : len;
         if (r->update_cksum) r->update_cksum(r,buf,bytes_to_write);
@@ -116,8 +116,8 @@ static inline size_t rioWrite(rio *r, const void *buf, size_t len) {
  * 从 r 中读取 len 字节，并将内容保存到 buf 中。
  *
  * 读取成功返回 1 ，失败返回 0 。
- */
-static inline size_t rioRead(rio *r, void *buf, size_t len) {
+ */  //rdb aof文件加载写入初始化为rioFileIO      DUMP, RESTORE and MIGRATE的时候用rioBufferIO
+static inline size_t rioRead(rio *r, void *buf, size_t len) { //rioBufferRead  rioFileRead
     while (len) {
         size_t bytes_to_read = (r->max_processing_chunk && r->max_processing_chunk < len) ? r->max_processing_chunk : len;
         if (r->read(r,buf,bytes_to_read) == 0)
@@ -133,7 +133,7 @@ static inline size_t rioRead(rio *r, void *buf, size_t len) {
 /*
  * 返回 r 的当前偏移量。
  */
-static inline off_t rioTell(rio *r) {
+static inline off_t rioTell(rio *r) { //rioBufferTell  rioFileTell
     return r->tell(r);
 }
 

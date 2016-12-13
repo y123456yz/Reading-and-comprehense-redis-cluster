@@ -30,6 +30,9 @@ redis源码阅读完后，发现以下问题及改造点：
 	
 	如果set test abc,然后继续执行setbit test 0 1；是会成功的。会造成test键内容被无意修改。可以增加一种编码encoding方式来加以区分。
 	
+	migrateCommand->syncWrite migrate迁移大value数据(例如10M)的时候，如果源redis节点协议栈sendbuf被填满(例
+	如目的接收端是虚拟机redis处理慢，而发送端是物理机处理快)则会出现永远migrate失败的情况，已经向redis官方提交该bug
+	
 	rdb aof重写容易触发oom
 	
 	网卡容易打满
@@ -37,6 +40,8 @@ redis源码阅读完后，发现以下问题及改造点：
 	40ms时延问题
 	
 	数据过期清除策略不合适
+	
+	一master多slave，新的slave通过投票机制表为master后，其他slave需要和这个新master进行全量同步，效率低下
 	
 	热点数据需要统计，应对qps节点访问不均
 	

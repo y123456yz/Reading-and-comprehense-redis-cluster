@@ -1014,11 +1014,11 @@ char *strEncoding(int encoding) {
 /* Given an object returns the min number of milliseconds the object was never
  * requested, using an approximated LRU algorithm. */
 // 使用近似 LRU 算法，计算出给定对象的闲置时长
-unsigned long long estimateObjectIdleTime(robj *o) {
+unsigned long long estimateObjectIdleTime(robj *o) { //计算该对象o已经多久没有访问了
     unsigned long long lruclock = LRU_CLOCK();
     if (lruclock >= o->lru) {
         return (lruclock - o->lru) * REDIS_LRU_CLOCK_RESOLUTION;
-    } else {
+    } else {//这种情况一般不会发生，发生时证明redis中键的保存时间已经wrap了
         return (lruclock + (REDIS_LRU_CLOCK_MAX - o->lru)) *
                     REDIS_LRU_CLOCK_RESOLUTION;
     }

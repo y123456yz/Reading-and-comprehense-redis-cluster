@@ -2246,6 +2246,7 @@ unsigned int getKeysInSlot(unsigned int hashslot, robj **keys, unsigned int coun
 
 /* Remove all the keys in the specified hash slot.
  * The number of removed items is returned. */
+//删除槽位上的所有KV
 unsigned int delKeysInSlot(unsigned int hashslot) {
     zskiplistNode *n;
     zrangespec range;

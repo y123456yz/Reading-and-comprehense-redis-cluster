@@ -3883,6 +3883,11 @@ void clusterHandleSlaveFailover(void) { //clusterBeforeSleep对CLUSTER_TODO_HANDL
  *
  * Additional conditions for migration are examined inside the function.
  */
+/*
+轮训完所有节点之后，如果存在孤立主节点，并且max_slaves大于等于2，并且当前节点刚好是那个拥有最多
+未下线从节点的主节点的众多从节点之一，则调用函数clusterHandleSlaveMigration，满足条件的情况下，进
+行从节点迁移，也就是将当前从节点置为某孤立主节点的从节点。
+*/
 void clusterHandleSlaveMigration(int max_slaves) {
     int j, okslaves = 0;
     clusterNode *mymaster = myself->slaveof, *target = NULL, *candidate = NULL;

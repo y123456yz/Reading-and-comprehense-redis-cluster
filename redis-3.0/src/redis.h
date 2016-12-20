@@ -376,14 +376,15 @@ REDIS_ZSET      REDIS_ENCODING_SKIPLIST 使用跳跃表和字典实现的有序集合对象。
  
  对象所使用的底层数据结构                   编码常量                                OBJECT ENCODING 命令输出
  
-     整数                                   REDIS_ENCODING_INT                          "int" 
-     embstr 编码的简单动态字符串（SDS）     REDIS_ENCODING_EMBSTR                       "embstr"  //2.9版本没有该编码方式了
-     简单动态字符串                         REDIS_ENCODING_RAW                          "raw" 
-     字典                                   REDIS_ENCODING_HT                           "hashtable" 
-     双端链表                               REDIS_ENCODING_LINKEDLIST                   "linkedlist" 
-     压缩列表                               REDIS_ENCODING_ZIPLIST                      "ziplist" 
-     整数集合                               REDIS_ENCODING_INTSET                       "intset" 
-     跳跃表和字典                           REDIS_ENCODING_SKIPLIST                     "skiplist" 
+    整数                               REDIS_ENCODING_INT           "int"           createStringObjectFromLongLong createIntsetObject tryObjectEncoding
+embstr 编码的简单动态字符串（SDS）     REDIS_ENCODING_EMBSTR        "embstr"        createEmbeddedStringObject
+简单动态字符串                         REDIS_ENCODING_RAW           "raw"           createObject
+字典                                   REDIS_ENCODING_HT            "hashtable"     createSetObject  hashTypeConvertZiplist
+双端链表                               REDIS_ENCODING_LINKEDLIST    "linkedlist"    createListObject
+压缩列表                               REDIS_ENCODING_ZIPLIST       "ziplist"       createZiplistObject createHashObject createZsetZiplistObject
+整数集合                               REDIS_ENCODING_INTSET        "intset"        createIntsetObject
+跳跃表和字典                           REDIS_ENCODING_SKIPLIST      "skiplist"      createZsetObject
+
 
     通过 encoding 属性来设定对象所使用的编码， 而不是为特定类型的对象关联一种固定的编码， 极大地提升了 Redis 的灵活性和效率， 因为 
 Redis 可以根据不同的使用场景来为一个对象设置不同的编码， 从而优化对象在某一场景下的效率。
@@ -716,7 +717,7 @@ typedef long long mstime_t; /* millisecond time type. */
     节点的key和value中可以参考dict->type( type为xxxDictType 例如keyptrDictType等) ，见dictCreate
 */
 
-typedef struct redisObject { 
+typedef struct redisObject { //key value分别有各自的一个redisobject结构，见dbAdd->dictAdd
 
     /*
      REDIS_STRING 字符串对象 
@@ -759,6 +760,17 @@ typedef struct redisObject {
     // 指向对象的值  对象的 ptr 指针指向对象的底层实现数据结构， 而这些数据结构由对象的 encoding 属性决定。
     // 指向实际值的指针  参考调用createObject的地方赋值
     //可以参考下createStringObject(ptr指向sdsnewlen)  createListObject(ptr指向list) 等等，每种type类型可以多种编码方式
+
+    /*  
+         整数                               REDIS_ENCODING_INT           "int"           createStringObjectFromLongLong createIntsetObject tryObjectEncoding
+     embstr 编码的简单动态字符串（SDS）     REDIS_ENCODING_EMBSTR        "embstr"        createEmbeddedStringObject
+     简单动态字符串                         REDIS_ENCODING_RAW           "raw"           createObject
+     字典                                   REDIS_ENCODING_HT            "hashtable"     createSetObject  hashTypeConvertZiplist  hashTypeConvertZiplist
+     双端链表                               REDIS_ENCODING_LINKEDLIST    "linkedlist"    createListObject
+     压缩列表                               REDIS_ENCODING_ZIPLIST       "ziplist"       createZiplistObject createHashObject createZsetZiplistObject
+     整数集合                               REDIS_ENCODING_INTSET        "intset"        createIntsetObject
+     跳跃表和字典                           REDIS_ENCODING_SKIPLIST      "skiplist"      createZsetObject
+    */ //赋值见createObject
     void *ptr;//如果是大于10000的字符串，则直接转换为REDIS_ENCODING_INT编码方式存储，见tryObjectEncoding，直接用这个指针存储对应的字符串地址
 
 } robj;
@@ -1252,7 +1264,7 @@ header ：指向跳跃表的表头节点。
 ?level ：记录目前跳跃表内，层数最大的那个节点的层数（表头节点的层数不计算在内）。
 ?length ：记录跳跃表的长度，也即是，跳跃表目前包含节点的数量（表头节点不计算在内）。
 */ //跳跃表可以参考http://blog.csdn.net/ict2014/article/details/17394259
-typedef struct zskiplist {
+typedef struct zskiplist { //zslCreate
 
     // 表头节点和表尾节点 // 头节点，尾节点  注意在创建zskiplist的时候默认有创建一个头节点，见zslCreate
     struct zskiplistNode *header, *tail;

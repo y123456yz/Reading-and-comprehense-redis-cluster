@@ -170,14 +170,15 @@ TYPE ÃüÁîµÄÊµÏÖ·½Ê½Ò²Óë´ËÀàËÆ£¬ µ±ÎÒÃÇ¶ÔÒ»¸öÊı¾İ¿â¼üÖ´ĞĞ TYPE ÃüÁîÊ±£¬ ÃüÁî·µ»Øµ
  
  ¶ÔÏóËùÊ¹ÓÃµÄµ×²ãÊı¾İ½á¹¹                   ±àÂë³£Á¿                                OBJECT ENCODING ÃüÁîÊä³ö
  
-     ÕûÊı                                   REDIS_ENCODING_INT                          "int" 
-     embstr ±àÂëµÄ¼òµ¥¶¯Ì¬×Ö·û´®£¨SDS£©     REDIS_ENCODING_EMBSTR                       "embstr"  //2.9°æ±¾Ã»ÓĞ¸Ã±àÂë·½Ê½ÁË
-     ¼òµ¥¶¯Ì¬×Ö·û´®                         REDIS_ENCODING_RAW                          "raw" 
-     ×Öµä                                   REDIS_ENCODING_HT                           "hashtable" 
-     Ë«¶ËÁ´±í                               REDIS_ENCODING_LINKEDLIST                   "linkedlist" 
-     Ñ¹ËõÁĞ±í                               REDIS_ENCODING_ZIPLIST                      "ziplist" 
-     ÕûÊı¼¯ºÏ                               REDIS_ENCODING_INTSET                       "intset" 
-     ÌøÔ¾±íºÍ×Öµä                           REDIS_ENCODING_SKIPLIST                     "skiplist" 
+     ÕûÊı                               REDIS_ENCODING_INT           "int"           createStringObjectFromLongLong createIntsetObject tryObjectEncoding
+ embstr ±àÂëµÄ¼òµ¥¶¯Ì¬×Ö·û´®£¨SDS£©     REDIS_ENCODING_EMBSTR        "embstr"        createEmbeddedStringObject
+ ¼òµ¥¶¯Ì¬×Ö·û´®                         REDIS_ENCODING_RAW           "raw"           createObject
+ ×Öµä                                   REDIS_ENCODING_HT            "hashtable"     createSetObject  hashTypeConvertZiplist
+ Ë«¶ËÁ´±í                               REDIS_ENCODING_LINKEDLIST    "linkedlist"    createListObject
+ Ñ¹ËõÁĞ±í                               REDIS_ENCODING_ZIPLIST       "ziplist"       createZiplistObject createHashObject createZsetZiplistObject
+ ÕûÊı¼¯ºÏ                               REDIS_ENCODING_INTSET        "intset"        createIntsetObject
+ ÌøÔ¾±íºÍ×Öµä                           REDIS_ENCODING_SKIPLIST      "skiplist"      createZsetObject
+
 
     Í¨¹ı encoding ÊôĞÔÀ´Éè¶¨¶ÔÏóËùÊ¹ÓÃµÄ±àÂë£¬ ¶ø²»ÊÇÎªÌØ¶¨ÀàĞÍµÄ¶ÔÏó¹ØÁªÒ»ÖÖ¹Ì¶¨µÄ±àÂë£¬ ¼«´óµØÌáÉıÁË Redis µÄÁé»îĞÔºÍĞ§ÂÊ£¬ ÒòÎª 
 Redis ¿ÉÒÔ¸ù¾İ²»Í¬µÄÊ¹ÓÃ³¡¾°À´ÎªÒ»¸ö¶ÔÏóÉèÖÃ²»Í¬µÄ±àÂë£¬ ´Ó¶øÓÅ»¯¶ÔÏóÔÚÄ³Ò»³¡¾°ÏÂµÄĞ§ÂÊ¡£

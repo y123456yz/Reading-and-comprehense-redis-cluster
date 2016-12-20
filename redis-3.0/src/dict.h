@@ -78,7 +78,7 @@ typedef struct dictEntry {
     然后在setKey等相关函数中把key-value转换为dictEntry节点的key和v(分别对应key和value)添加到dictht->table[]  hash中
     */
     // 键
-    void *key; 
+    void *key; //对应一个robj
     
     /*
       key 属性保存着键值对中的键， 
@@ -93,7 +93,7 @@ typedef struct dictEntry {
         void *val;
         uint64_t u64;
         int64_t s64;//一般记录的是过期键db->expires中每个键的过期时间  单位ms
-    } v;
+    } v;//对应一个robj
 
     
     //next 属性是指向另一个哈希表节点的指针， 这个指针可以将多个哈希值相同的键值对连接在一次， 以此来解决键冲突（collision）的问题。
@@ -342,7 +342,7 @@ typedef struct dict {//dictCreate创建和初始化
     // 目前正在运行的安全迭代器的数量
     int iterators; /* number of iterators currently running */
 
-} dict;
+} dict; //dict空间创建初始化在dictExpand，第一次是在_dictExpandIfNeededif->dictExpand(d, DICT_HT_INITIAL_SIZE);
 
 /* If safe is set to 1 this is a safe iterator, that means, you can call
  * dictAdd, dictFind, and other functions against the dictionary even while

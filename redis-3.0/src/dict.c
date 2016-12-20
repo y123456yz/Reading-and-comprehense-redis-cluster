@@ -359,7 +359,9 @@ int dictExpand(dict *d, unsigned long size)
  *
  * T = O(N)
  */
-int dictRehash(dict *d, int n) {
+int dictRehash(dict *d, int n) { 
+//rehash分为主动rehash，dictRehashMilliseconds也就是定时去rehash，怕有的KV长时间不访问一直不迁移到ht[1],
+//另一种是由客户端访问的时候被动进行rehash，见_dictRehashStep
 
     // 只可以在 rehash 进行中时执行
     if (!dictIsRehashing(d)) return 0;
@@ -446,6 +448,8 @@ long long timeInMilliseconds(void) {
  *
  * T = O(N)
  */
+    //rehash分为主动rehash，dictRehashMilliseconds也就是定时去rehash，怕有的KV长时间不访问一直不迁移到ht[1],
+    //另一种是由客户端访问的时候被动进行rehash，见_dictRehashStep
 int dictRehashMilliseconds(dict *d, int ms) {
     // 记录开始时间
     long long start = timeInMilliseconds();
@@ -479,6 +483,8 @@ int dictRehashMilliseconds(dict *d, int ms) {
  *
  * T = O(1)
  */
+    //rehash分为主动rehash，dictRehashMilliseconds也就是定时去rehash，怕有的KV长时间不访问一直不迁移到ht[1],
+    //另一种是由客户端访问的时候被动进行rehash，见_dictRehashStep
 static void _dictRehashStep(dict *d) {
     if (d->iterators == 0) dictRehash(d,1);
 }
@@ -493,7 +499,7 @@ static void _dictRehashStep(dict *d) {
  *
  * 最坏 T = O(N) ，平滩 O(1) 
  */ // 将给定的键值对添加到字典里面。      
-int dictAdd(dict *d, void *key, void *val)
+int dictAdd(dict *d, void *key, void *val) //把key和val对应的obj添加到一个entry中 
 {
     // 尝试添加键到字典，并返回包含了这个键的新哈希节点
     // T = O(N)

@@ -908,7 +908,8 @@ void redisLogHexDump(int level, char *descr, void *value, size_t len) {
 /* =========================== Software Watchdog ============================ */
 #include <sys/time.h>
 
-void watchdogSignalHandler(int sig, siginfo_t *info, void *secret) {
+//watchdogScheduleSignal触发SIGALRM执行watchdogSignalHandler
+void watchdogSignalHandler(int sig, siginfo_t *info, void *secret) {//SIGALRM信号触发
 #ifdef HAVE_BACKTRACE
     ucontext_t *uc = (ucontext_t*) secret;
 #endif
@@ -927,7 +928,7 @@ void watchdogSignalHandler(int sig, siginfo_t *info, void *secret) {
 /* Schedule a SIGALRM delivery after the specified period in milliseconds.
  * If a timer is already scheduled, this function will re-schedule it to the
  * specified time. If period is 0 the current timer is disabled. */
-void watchdogScheduleSignal(int period) {
+void watchdogScheduleSignal(int period) { //watchdogScheduleSignal触发SIGALRM执行watchdogSignalHandler
     struct itimerval it;
 
     /* Will stop the timer if period is 0. */
@@ -939,9 +940,43 @@ void watchdogScheduleSignal(int period) {
     setitimer(ITIMER_REAL, &it, NULL);
 }
 
+/*
+　　这个看门狗软件还是一个实验性功能，当用于生产环境时，请小心并做好备份工作，可能有意想不到的问题影响正常的redis服务。
+
+　　当你没有更好的工具追踪问题时，可以使用它。
+
+　　这个功能是这样工作的：
+
+用户通过命令CONFIG SET开启软件看门狗
+Redis启动监测程序监测自己的状态
+如果Redis检测到服务器被某些操作阻塞了，并运行速度不够快，也许是因为延迟导致的，Redis就会在log文件中写入一份关于被阻塞服务器的底层监测数据报表
+用户通过Redis Google Group发送消息给开发人员，消息包括看门狗报表。
+　　请注意，这项功能不能通过redis.conf文件开启，因为这项够能设计之初就是面向正在运行的服务器，而且只是为了调试程序。
+
+　　如果要开启该功能，只需运行如下命令：
+
+ 
+
+CONFIG SET watchdog-period 500
+ 
+
+      时间间隔以毫秒为单位。在上面的例子中，我指定了，当服务器检测到500毫秒或更大的延迟的时候，才记录延迟事件。最小的时间间隔是200毫秒。
+　　当你运行完了软件看门狗，你可以通过设置时间间隔参数为0来关闭看门狗。需要注意的：记得关闭看门狗，因为开启看门狗太长时间并不是一个好主意。
+
+　　以下的例子，你可以看到，当看门狗监测到延迟事件的时候，输出日志文件的内容：
+
+ 
+
+[8547 | signal handler] (1333114359)--- WATCHDOG TIMER EXPIRED ---/lib/libc.so.6(nanosleep+0x2d) [0x7f16b5c2d39d]/lib/libpthread.so.0(+0xf8f0) [0x7f16b5f158f0]/lib/libc.so.6(nanosleep+0x2d) [0x7f16b5c2d39d]/lib/libc.so.6(usleep+0x34) [0x7f16b5c62844]./redis-server(debugCommand+0x3e1) [0x43ab41]./redis-server(call+0x5d) [0x415a9d]./redis-server(processCommand+0x375) [0x415fc5]./redis-server(processInputBuffer+0x4f) [0x4203cf]./redis-server(readQueryFromClient+0xa0) [0x4204e0]./redis-server(aeProcessEvents+0x128) [0x411b48]./redis-server(aeMain+0x2b) [0x411dbb]./redis-server(main+0x2b6) [0x418556]/lib/libc.so.6(__libc_start_main+0xfd) [0x7f16b5ba1c4d]./redis-server() [0x411099]------
+ 
+
+      注意：例子中 DEBUG SLEEP 命令是用于阻塞服务器的。在不同的阻塞背景下，堆栈信息会有不同。
+
+*/
 /* Enable the software watchdog with the specified period in milliseconds. */
 void enableWatchdog(int period) {
     int min_period;
+    //watchdogScheduleSignal触发SIGALRM执行watchdogSignalHandler
 
     if (server.watchdog_period == 0) {
         struct sigaction act;

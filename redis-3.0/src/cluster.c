@@ -790,7 +790,8 @@ void clusterAcceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
  * However if the key contains the {...} pattern, only the part between
  * { and } is hashed. This may be useful in the future to force certain
  * keys to be in the same node (assuming no resharding is in progress). */
-    // 计算给定键应该被分配到那个槽   如果key中包含{},则只对{}中的字符串做hash，例如abccxx{DDDD}，则只会对DDDD做HASH
+    // 计算给定键应该被分配到那个槽   如果key中包含{},则只对{}中的字符串做hash，例如abccxx{DDDD}，
+    //则只会对DDDD做HASH,这样使用{}标记分布在同一个槽位的key，就可以使用mget mset del多个key了
 unsigned int keyHashSlot(char *key, int keylen) {
     int s, e; /* start-end indexes of { and } */
 
@@ -6597,7 +6598,8 @@ clusterNode *getNodeByQuery(redisClient *c, struct redisCommand *cmd, robj **arg
                 }
             } else {
                 /* If it is not the first key, make sure it is exactly
-                 * the same key as the first we saw. */
+                 * the same key as the first we saw. */ 
+                 //mget  mset del命令后面的key必须在同一个slot上面，否则报错-CROSSSLOT Keys in request don't hash to the same slot
                 if (!equalStringObjects(firstkey,thiskey)) {
                     if (slot != thisslot) {
                         /* Error: multiple keys from different slots. */

@@ -426,6 +426,7 @@ static int compareLatency(const void *a, const void *b) {
 }
 
 //slowlog只记录客户端执行cmd命令的时延信息，redis内部可能出现的阻塞操作是靠latency机制统计的，见http://blog.csdn.net/dc_726/article/details/47699739
+//Redis延迟监控框架详解http://ghoulich.xninja.org/2016/12/08/how-to-use-latency-monitor-in-redis/
 static void showLatencyReport(void) {/* 输出请求延时 */
     int i, curlat = 0;
     float perc, reqpersec;

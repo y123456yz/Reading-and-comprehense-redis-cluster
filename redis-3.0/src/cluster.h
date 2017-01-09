@@ -47,7 +47,7 @@
 /* 由 getNodeByQuery() 函数返回的转向错误。 */
 // 节点可以处理这个命令
 #define REDIS_CLUSTER_REDIR_NONE 0          /* Node can serve the request. */
-// 键在其他槽
+// 键在其他槽  //mget  mset del命令后面的key必须在同一个slot上面，否则报错-CROSSSLOT Keys in request don't hash to the same slot
 #define REDIS_CLUSTER_REDIR_CROSS_SLOT 1    /* Keys in different slots. */
 // 键所处的槽正在进行 reshard
 #define REDIS_CLUSTER_REDIR_UNSTABLE 2      /* Keys in slot resharding. */

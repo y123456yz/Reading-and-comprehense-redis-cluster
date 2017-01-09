@@ -928,7 +928,7 @@ void updateDictResizePolicy(void) {
  * to the function to avoid too many gettimeofday() syscalls.
  *
  * 参数 now 是毫秒格式的当前时间
- */
+ */ //Redis延迟监控框架详解http://ghoulich.xninja.org/2016/12/08/how-to-use-latency-monitor-in-redis/
 int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
     // 获取键的过期时间
     long long t = dictGetSignedIntegerVal(de);

@@ -1578,7 +1578,7 @@ struct redisServer {//struct redisServer server;
        lowlog-max-len选项指定服务器最多保存多少条慢查询日志。服务器使用先进先出的方式保存多条慢查询日志，当服务器存储的慢
        查询日志数量等于slowlog-max-len选项的值时，服务器在添加一条新的慢查询日志之前，会先将最旧的一条慢查询日志删除。
       */
-    // 服务器配置 slowlog-max-len 选项的值
+    // 服务器配置 slowlog-max-len 选项的值  //Redis延迟监控框架详解http://ghoulich.xninja.org/2016/12/08/how-to-use-latency-monitor-in-redis/
     unsigned long slowlog_max_len;     /* SLOWLOG max number of items logged */
     size_t resident_set_size;       /* RSS sampled in serverCron(). */
     /* The following two are used to track instantaneous "load" in terms

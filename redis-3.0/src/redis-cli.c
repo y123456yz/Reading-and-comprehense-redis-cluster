@@ -1839,6 +1839,50 @@ static void intrinsicLatencyMode(void) {
     }
 }
 
+/*
+redis-cli我们最常用的两个参数就是-h、-p、-a选项，分配用来指定连接的redis-server的host和port。
+
+通过redis-cli –help发现，redis-cli还提供了其他很多的参数和功能。
+-x-x选项从标准输入（stdin）读取最后一个参数。 比如从管道中读取输入：
+
+echo -en "chen.qun" | redis-cli -x set name
+-r -i
+
+-r 选项重复执行一个命令指定的次数。
+
+-i 设置命令执行的间隔。
+
+比如查看redis每秒执行的commands（qps）
+
+redis-cli -r 100 -i 1 info stats | grep instantaneous_ops_per_sec
+-c开启reidis cluster模式，连接redis cluster节点时候使用。
+
+–rdb获取指定redis实例的rdb文件,保存到本地。
+
+redis-cli -h 192.168.44.16 -p 6379 --rdb 6379.rdb
+–slave模拟slave从master上接收到的commands。slave上接收到的commands都是update操作，记录数据的更新行为。
+
+–scan和–pattern是用scan命令扫描redis中的key，–pattern选项指定扫描的key的pattern。相比keys pattern模式,不会长时间阻塞redis而导致其他客户端的命令请求一直处于阻塞状态。
+
+redis-cli --scan --pattern 'chenqun_*'
+–pipe
+
+这个一个非常有用的参数。发送原始的redis protocl格式数据到服务器端执行。
+
+比如下面的形式的数据（linux服务器上需要用unix2dos转化成dos文件）。
+
+linux下默认的换行是\n,windows系统的换行符是\r\n，redis使用的是\r\n.
+
+echo -en '*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n' | redis-cli --pipe
+参考： http://redis.io/topics/mass-insert
+
+–bigkeys对redis中的key进行采样，寻找较大的keys。是用的是scan方式，不用担心会阻塞redis很长时间不能处理其他的请求。执行的结果可以用于分析redis的内存的只用状态，每种类型key的平均大小。
+
+redis-cli --bigkeys
+–eval执行指定lua脚本的。
+
+redis-cli --eval myscript.lua key1 key2 , arg1 arg2 arg3
+*/
 /*------------------------------------------------------------------------------
  * Program main()
  *--------------------------------------------------------------------------- */

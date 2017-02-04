@@ -209,6 +209,7 @@ static void readHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         fprintf(stderr,"Error: %s\n",c->context->errstr);
         exit(1);
     } else {
+        //printf("yang test ... readbuf:%s\r\n", c->context->reader->buf);
         while(c->pending) {
             if (redisGetReply(c->context,&reply) != REDIS_OK) {
                 fprintf(stderr,"Error: %s\n",c->context->errstr);
@@ -732,26 +733,25 @@ int main(int argc, const char **argv)
     data = zmalloc(config.datasize+1);
     memset(data,'x',config.datasize);
     data[config.datasize] = '\0';
-    do {//持续写数据用./src/redis-benchmark -h 172.16.3.44 -p 11112 -c 2 -n 2 -d 10 -q -l -k 1
-        /*memset(data,'x',config.datasize);
-        data[config.datasize] = '\0';*/
+    do {
+        memset(data,'x',config.datasize);
+        data[config.datasize] = '\0';
 
-        /*if (test_is_selected("ping_inline") || test_is_selected("ping"))
-            benchmark("PING_INLINE","PING\r\n",6);
-
+       // if (test_is_selected("ping_inline") || test_is_selected("ping"))
+        //    benchmark("PING_INLINE","PING\r\n",6);
         if (test_is_selected("ping_mbulk") || test_is_selected("ping")) {
-            len = redisFormatCommand(&cmd,"PING");
-            benchmark("PING_BULK",cmd,len);
-            free(cmd);
-        }*/
+            //len = redisFormatCommand(&cmd,"PING");
+           // benchmark("PING_BULK",cmd,len);
+           // free(cmd);
+        }
 
         if (test_is_selected("set")) {
-            len = redisFormatCommand(&cmd,"SET key:__rand_int__%lld %s",count, data);
+            len = redisFormatCommand(&cmd,"SET key:__rand_int__ %s",data);
             benchmark("SET",cmd,len);
             free(cmd);
         }
 
-       /* if (test_is_selected("get")) {
+        if (test_is_selected("get")) {
             len = redisFormatCommand(&cmd,"GET key:__rand_int__");
             benchmark("GET",cmd,len);
             free(cmd);
@@ -764,25 +764,25 @@ int main(int argc, const char **argv)
         }
 
         if (test_is_selected("lpush")) {
-            len = redisFormatCommand(&cmd,"LPUSH mylist %lld_%s",count, data);
+            len = redisFormatCommand(&cmd,"LPUSH mylist %s",data);
             benchmark("LPUSH",cmd,len);
             free(cmd);
-        }*/
+        }
 
-       /* if (test_is_selected("lpop")) {
+        if (test_is_selected("lpop")) {
             len = redisFormatCommand(&cmd,"LPOP mylist");
             benchmark("LPOP",cmd,len);
             free(cmd);
         }
 
         if (test_is_selected("sadd")) {
-            len = redisFormatCommand(&cmd, "SADD myset element:__rand_int__%lld", count);
+            len = redisFormatCommand(&cmd,
+                "SADD myset element:__rand_int__");
             benchmark("SADD",cmd,len);
             free(cmd);
         }
-       */
 
-       /*if (test_is_selected("spop")) {
+        if (test_is_selected("spop")) {
             len = redisFormatCommand(&cmd,"SPOP myset");
             benchmark("SPOP",cmd,len);
             free(cmd);
@@ -823,18 +823,73 @@ int main(int argc, const char **argv)
             free(cmd);
         }
 
+        #define testcount  1001
         if (test_is_selected("mset")) {
-            const char *argv[21];
+            
+            const char *argv[testcount];
             argv[0] = "MSET";
-            for (i = 1; i < 21; i += 2) {
-                argv[i] = "key:__rand_int__";
+            for (i = 1; i < testcount; i += 12) {
+                argv[i] = "{yang}key:__rand_int__";
                 argv[i+1] = data;
+
+                argv[i+2] = "{ya}key:_s_randxxx_int__";
+                argv[i+3] = data;
+
+                argv[i+4] = "{zhouabc}keyaa:_s_randxxx_int__";
+                argv[i+5] = data;
+
+                argv[i+6] = "{deng}key:__rand_int__";
+                argv[i+7] = data;
+                
+                argv[i+8] = "{afdaf}key:_s_randxxx_int__";
+                argv[i+9] = data;
+                
+                argv[i+10] = "{3}keyaa:_s_randxxx_int__"; 
+                argv[i+11] = data;
             }
-            len = redisFormatCommandArgv(&cmd,21,argv,NULL);
+            len = redisFormatCommandArgv(&cmd,testcount,argv,NULL);
             benchmark("MSET (10 keys)",cmd,len);
             free(cmd);
-        }*/
-        count++;
+            usleep(10);
+        }
+
+        if (test_is_selected("mget")) {
+            
+            const char *argv[testcount];
+            argv[0] = "MGET";
+            for (i = 1; i < testcount; i += 6) {
+                argv[i] = "{yang}key:__rand_int__";
+                argv[i+1] = "{ya}key:_s_randxxx_int__";
+                argv[i+2] = "{zhouabc}keyaa:_s_randxxx_int__";
+                argv[i+3] = "{deng}key:__rand_int__";
+                argv[i+4] = "{afdaf}key:_s_randxxx_int__";
+                argv[i+5] = "{3}keyaa:_s_randxxx_int__";               
+                //argv[i+1] = data;
+            }
+            len = redisFormatCommandArgv(&cmd,testcount,argv,NULL);
+            benchmark("MGET (10 keys)",cmd,len);
+            free(cmd);
+        }
+
+        
+        if (test_is_selected("del")) {
+                    
+            const char *argv[testcount];
+            argv[0] = "DEL";
+            for (i = 1; i < testcount; i += 3) {
+                argv[i] = "{yang}key:__rand_int__";
+                argv[i+1] = "{ya}key:_s_randxxx_int__";
+                argv[i+2] = "{zhouabc}keyaa:_s_randxxx_int__";
+                argv[i+3] = "{deng}key:__rand_int__";
+                argv[i+4] = "{afdaf}key:_s_randxxx_int__";
+                argv[i+5] = "{3}keyaa:_s_randxxx_int__"; 
+                //argv[i+1] = data;
+            }
+            len = redisFormatCommandArgv(&cmd,testcount,argv,NULL);
+            benchmark("DEL (10 keys)",cmd,len);
+            free(cmd);
+        }
+
         if (!config.csv) printf("\n");
     } while(config.loop);
 

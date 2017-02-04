@@ -5635,7 +5635,7 @@ void clusterCommand(redisClient *c) {
             return;
         }
         clusterReset(hard);
-        addReply(c,shared.ok);
+        addReply(c,shared.ok); 
     } else {
         addReplyError(c,"Wrong CLUSTER subcommand or number of arguments");
     }

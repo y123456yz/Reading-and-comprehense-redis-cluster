@@ -699,9 +699,7 @@ void syncCommand(redisClient *c) { //sync和psync回调都是该接口
             copyClientOutputBuffer(c,slave);
             c->replstate = REDIS_REPL_WAIT_BGSAVE_END;
             redisLog(REDIS_NOTICE,"Waiting for end of BGSAVE for SYNC");
-        } else {//走到这里说明不是因为slave连接上来而进行的rdb重写，应该是因为敲了bgsave或者因为不停写命令而触发了redis进行bgsave。因此本slave实际上是第一个连到
-        //master的，因此要进行rdb重写
-
+        } else {
 
         //因为虽然有RDB文件重写完成，但是不是因为
         //slave而触发全量同步引起的rdb重写，而是因为敲了bgsave命令或者满足配置save time count而触发bgsave条件满足而引起rdb重写

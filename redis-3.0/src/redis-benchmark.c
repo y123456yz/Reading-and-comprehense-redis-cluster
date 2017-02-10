@@ -824,11 +824,16 @@ int main(int argc, const char **argv)
         }
 
         #define testcount  1001
+        char buf_multi[2001][50];
         if (test_is_selected("mset")) {
             
             const char *argv[testcount];
             argv[0] = "MSET";
-            for (i = 1; i < testcount; i += 12) {
+            for (i = 1; i < testcount;  i++) {
+                snprintf(buf_multi[i], 50, "%d", i);
+                argv[i] = buf_multi[i];
+            }
+            /*for (i = 1; i < testcount; i += 12) {
                 argv[i] = "{yang}key:__rand_int__";
                 argv[i+1] = data;
 
@@ -846,7 +851,7 @@ int main(int argc, const char **argv)
                 
                 argv[i+10] = "{3}keyaa:_s_randxxx_int__"; 
                 argv[i+11] = data;
-            }
+            }*/
             len = redisFormatCommandArgv(&cmd,testcount,argv,NULL);
             benchmark("MSET (10 keys)",cmd,len);
             free(cmd);
@@ -857,7 +862,11 @@ int main(int argc, const char **argv)
             
             const char *argv[testcount];
             argv[0] = "MGET";
-            for (i = 1; i < testcount; i += 6) {
+            for (i = 1; i < testcount;  i++) {
+                snprintf(buf_multi[i], 50, "%d", i);
+                argv[i] = buf_multi[i];
+            }
+            /*for (i = 1; i < testcount; i += 6) {
                 argv[i] = "{yang}key:__rand_int__";
                 argv[i+1] = "{ya}key:_s_randxxx_int__";
                 argv[i+2] = "{zhouabc}keyaa:_s_randxxx_int__";
@@ -865,7 +874,7 @@ int main(int argc, const char **argv)
                 argv[i+4] = "{afdaf}key:_s_randxxx_int__";
                 argv[i+5] = "{3}keyaa:_s_randxxx_int__";               
                 //argv[i+1] = data;
-            }
+            }*/
             len = redisFormatCommandArgv(&cmd,testcount,argv,NULL);
             benchmark("MGET (10 keys)",cmd,len);
             free(cmd);
@@ -876,7 +885,11 @@ int main(int argc, const char **argv)
                     
             const char *argv[testcount];
             argv[0] = "DEL";
-            for (i = 1; i < testcount; i += 3) {
+            for (i = 1; i < testcount;  i++) {
+                snprintf(buf_multi[i], 50, "%d", i);
+                argv[i] = buf_multi[i];
+            }
+            /*for (i = 1; i < testcount; i += 3) {
                 argv[i] = "{yang}key:__rand_int__";
                 argv[i+1] = "{ya}key:_s_randxxx_int__";
                 argv[i+2] = "{zhouabc}keyaa:_s_randxxx_int__";
@@ -884,7 +897,7 @@ int main(int argc, const char **argv)
                 argv[i+4] = "{afdaf}key:_s_randxxx_int__";
                 argv[i+5] = "{3}keyaa:_s_randxxx_int__"; 
                 //argv[i+1] = data;
-            }
+            }*/
             len = redisFormatCommandArgv(&cmd,testcount,argv,NULL);
             benchmark("DEL (10 keys)",cmd,len);
             free(cmd);

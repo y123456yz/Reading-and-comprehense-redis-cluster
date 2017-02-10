@@ -1,5 +1,5 @@
-# reading-redis-2.9.11
-redis-2.9.11阅读理解，带详细注释  
+# reading
+redis阅读理解，带详细注释  
 
 
 

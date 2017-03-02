@@ -1221,10 +1221,16 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
             return;
         }
 
+        /*
+        ??????这里其他集群节点会不会标记该节点下线呢????因为这里的清除操作可能需要消耗大量时间，超过集群间PING--PONG时间了 
+        如果这里emptyDb和rdbLoad这段时间过长，因为这段时间是不会处理clusterCron定时任务的，因此其他节点会把该slave标记为pfail或者
+        fail，不过这没关系，当rdbLoad执行完后，该节点继续执行定时程序，发送ping，其他节点收到后，会从新把该节点标记为ONline.
+        */
+        
         // 先清空旧数据库
         redisLog(REDIS_NOTICE, "MASTER <-> SLAVE sync: Flushing old data");
         signalFlushedDb(-1);  
-        //??????这里其他集群节点会不会标记该节点下线呢????因为这里的清除操作可能需要消耗大量时间，超过集群间PING--PONG时间了
+        
         emptyDb(replicationEmptyDbCallback);//把内存中的所有dbid(select id中的id)数据库key-value清楚，如果为-1，表示把说有数据库清除
         /* Before loading the DB into memory we need to delete the readable
          * handler, otherwise it will get called recursively since

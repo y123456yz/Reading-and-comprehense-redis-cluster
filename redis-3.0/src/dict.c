@@ -252,7 +252,7 @@ int _dictInit(dict *d, dictType *type,
  *
  * T = O(N)
  */ /* rehash扩大调用关系调用过程:dictAddRaw->_dictKeyIndex->_dictExpandIfNeeded(这里决定是否需要扩展hash)->dictExpand 
-缩减hash过程:serverCron->tryResizeHashTables->dictResize(这里绝对缩减后的桶数)->dictExpand */
+缩减hash过程:_dictRehashStep  serverCron->tryResizeHashTables->dictResize(这里绝对缩减后的桶数)->dictExpand */
 int dictResize(dict *d)
 {
     int minimal;
@@ -400,7 +400,7 @@ int dictRehash(dict *d, int n) {
         /* Move all the keys in this bucket from the old to the new hash HT */
         // 将链表中的所有节点迁移到新哈希表
         // T = O(1)
-        while(de) {
+        while(de) { /* 在hdel一次删除数十条的时候，如果刚好触发dictRehash,这里可能会阻塞，有可能该table链表上的数据量很大 */
             unsigned int h;
 
             // 保存下个节点的指针

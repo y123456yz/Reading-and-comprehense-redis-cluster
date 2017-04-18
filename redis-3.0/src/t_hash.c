@@ -368,7 +368,6 @@ int hashTypeDelete(robj *o, robj *field) {
             // 删除成功时，看字典是否需要收缩
             if (htNeedsResize(o->ptr)) dictResize(o->ptr);
         }
-
     } else {
         redisPanic("Unknown hash encoding");
     }

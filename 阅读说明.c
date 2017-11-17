@@ -24,9 +24,7 @@ cluster集群cluster、redis节点扩容、数据迁移等功能重新梳理分�
 
 -----------------------------------    
 问题及改造点:  
-	rdb aof重写容易触发oom  
-	
-	网卡容易打满  
+	全量同步网卡容易打满  
 	
 	40ms时延问题   
 	
@@ -62,8 +60,6 @@ cluster集群cluster、redis节点扩容、数据迁移等功能重新梳理分�
 	
 	aof会占用磁盘空间很大，当磁盘空间满了后，flushAppendOnlyFile会失败，这时候无法恢复，只能加硬盘修复。  
 	
-	aof本来只需要记录一次bgsave后的增量数据，没必要记录所有的数据到aof文件中，太耗磁盘，并且容易触发OOM。  
-	
     数据量大的集群迁移太慢，优化,现有迁移过程是通过工具获取某个槽位的KV，然后一条一条的通知redis进行迁移，慢如牛。可以避开中间工具，直接进行批量数据迁移。  
 	
 	hash结构存储的HGETALL  HDEL，如果hash上存储的kv对太多，容易造成redis阻塞，进一步引起集群节点反复掉线，集群抖动进一步引起整体同步.是否应该起一个线程单独做这个事情，或者像scan机制那样异步逐条清理  
@@ -78,7 +74,7 @@ cluster集群cluster、redis节点扩容、数据迁移等功能重新梳理分�
 	
 	主从KV实时同步和主从增量同步本身机制分别依赖于客户端buffer和积压缓冲区buffer，很容易造成全量同步，网卡瞬间打满，这种设计机制就有问题，过度依赖buff，可以参考mysql的binlog机制进行优化修改。  
     
-	echo 'vm.overcommit_memory=1' >> /etc/sysctl.conf   sysctl -p /etc/sysctl.conf 避免fork OOM
+	echo 'vm.overcommit_memory=1' >> /etc/sysctl.conf   sysctl -p /etc/sysctl.conf 避免fork 失败
 	
  
 其他需要改造的地方:  

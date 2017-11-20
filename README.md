@@ -74,7 +74,7 @@ cluster集群cluster、redis节点扩容、数据迁移等功能重新梳理分�
 	
 	主从KV实时同步和主从增量同步本身机制分别依赖于客户端buffer和积压缓冲区buffer，很容易造成全量同步，网卡瞬间打满，这种设计机制就有问题，过度依赖buff，可以参考mysql的binlog机制进行优化修改。  
     
-	echo 'vm.overcommit_memory=1' >> /etc/sysctl.conf   sysctl -p /etc/sysctl.conf 避免fork 失败
+	echo 'vm.overcommit_memory=1' >> /etc/sysctl.conf   
 	
  
 其他需要改造的地方:  

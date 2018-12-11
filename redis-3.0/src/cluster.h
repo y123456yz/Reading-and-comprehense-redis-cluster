@@ -259,6 +259,7 @@ struct clusterNode { //clusterState->nodes结构  集群数据交互接收的地方在clusterP
     会不同，如果没有配置set-config-epoch的话，各个节点的clusterNode.configEpoch分别为0 - n,例如3个节点，则每个节点分别对应
     0 1 2，可以通过cluster node中connected前的数值查看
     */ //赋值见clusterHandleConfigEpochCollision  clusterProcessPacket clusterHandleSlaveFailover,真正生效的地方在clusterSendFailoverAuthIfNeeded clusterUpdateSlotsConfigWith，在该函数中进行判断
+    //configEpoch  currentEpoch作用参考可以参考https://yq.aliyun.com/articles/66939#15
     uint64_t configEpoch; /* Last configEpoch observed for this node */
 
     // 由这个节点负责处理的槽
@@ -381,7 +382,7 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     
     //在clusterHandleConfigEpochCollision中会自增，也可以在clusterProcessPacket更新    
     //slave要求其他master进行投票的时候，也会在clusterHandleSlaveFailover自增
-    uint64_t currentEpoch; 
+    uint64_t currentEpoch;  //configEpoch  currentEpoch作用参考可以参考https://yq.aliyun.com/articles/66939#15
     
     // 集群当前的状态：是在线还是下线    在clusterUpdateState中更新集群状态
     int state;            /* REDIS_CLUSTER_OK, REDIS_CLUSTER_FAIL, ... */
@@ -727,6 +728,7 @@ typedef struct { //内部通信直接通过该结构发送，解析该结构在clusterProcessPacket
     //赋值来自于server.cluster->currentEpoch，见clusterBuildMessageHdr  
     // 消息发送者的配置纪元   也就是当前节点所在集群的版本号  
     //目前currentEpoch只用于从节点的故障转移流程  详见http://blog.csdn.net/gqtcgq/article/details/51830428  这里解释很好
+    //configEpoch  currentEpoch作用参考可以参考https://yq.aliyun.com/articles/66939#15
     uint64_t currentEpoch;  /* The epoch accordingly to the sending node. */
 
     // 如果消息发送者是一个主节点，那么这里记录的是消息发送者的配置纪元
@@ -734,6 +736,7 @@ typedef struct { //内部通信直接通过该结构发送，解析该结构在clusterProcessPacket
     /* current epoch和cluster epoch可以参考http://redis.cn/topics/cluster-spec.html */
     //见clusterBuildMessageHdr，当前节点的Epoch，每个节点自己的Epoch不一样，可以参考clusterNode->configEpoch
     //真正生效的地方在clusterSendFailoverAuthIfNeeded，在该函数中进行判断
+    //configEpoch  currentEpoch作用参考可以参考https://yq.aliyun.com/articles/66939#15
     uint64_t configEpoch;   /* The config epoch if it's a master, or the last
                                epoch advertised by its master if it is a
                                slave. */

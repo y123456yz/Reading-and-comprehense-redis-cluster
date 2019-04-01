@@ -1105,6 +1105,7 @@ typedef struct redisClient {   //redisServer与redisClient对应
     //见slaveTryPartialResynchronization   //备服务器只有在接收到完整的主服务器的RDB文件后，才会更新该值，并且在实时数据过来的时候也需要更新该值。
     //如果该redis备启动后，正在同步rdb文件，同步一般RDB文件，这时候网络异常，则再次连接上后还是需要进行完整RDB同步，
     //因为只有同步了完整的RDB文件后才会更新偏移量reploff，见slaveTryPartialResynchronization 
+    //真正赋值见readQueryFromClient
     long long reploff;      /* replication offset if this is our master */ //通过replicationSendAck报告给master
     // 从服务器最后一次发送 REPLCONF ACK 时的偏移量
     long long repl_ack_off; /* replication ack offset, if this is a slave */

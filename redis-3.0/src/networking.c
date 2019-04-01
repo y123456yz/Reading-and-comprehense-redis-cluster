@@ -1686,7 +1686,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
         sdsIncrLen(c->querybuf,nread);
         // 记录服务器和客户端最后一次互动的时间
         c->lastinteraction = server.unixtime;
-        // 如果客户端是 master 的话，更新它的复制偏移量
+        // 如果客户端是 master 的话，更新它的复制偏移量，也就是对方是master，本实例为slave
         if (c->flags & REDIS_MASTER) c->reploff += nread;
     } else {
         // 在 nread == -1 且 errno == EAGAIN 时运行

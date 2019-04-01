@@ -379,6 +379,37 @@ typedef struct clusterState { //数据源头在server.cluster   //集群相关配置加载在c
     0 1 2，可以通过cluster node中connected前的数值查看  
     目前currentEpoch只用于从节点的故障转移流程  详见http://blog.csdn.net/gqtcgq/article/details/51830428  这里解释很好
     */ //currentEpoch可以通过cluster info命令中的cluster_current_epoch获取到   configEpoch可以通过cluster node中connected前的数值查看
+
+    /*
+    Epoch
+    每个 cluster node 既要维护集群的状态信息，也要知道其他节点的信息。集群的主从和 slot 的一致性是由 epoch 来管理。 
+    整个集群的 epoch 称为 currentEpoch，每个节点自己的 epoch 称为 configEpoch，currentEpoch 值为整个集群中各个节点的 configEpoch 值的最大值。
+    
+    configEpoch 表示某节点最后一次变成主节点或获取新 slot 所有权的逻辑时间，主要用于解决不同的节点的配置发生冲突的情况，以下几种情况 configEpoch 会更新：
+    
+    新节点加入；
+    
+    槽节点映射冲突检测；（slot 归属变更）
+    
+    从节点投票选举冲突检测。(主从切换)
+    
+    递增node epoch称为bump epoch。
+    
+    关于 epoch 有三个原则：
+    
+    如果epoch不变, 集群就不应该有变更(包括选举和迁移槽位)
+    
+    每个节点的node epoch都是独一无二的。
+    
+    拥有越高epoch的节点, 集群信息越新。
+    
+    在使用 gossip 协议中, 如果多个节点声称不同的集群信息, 那对于某个节点来说究竟要相信谁呢? 
+    Redis Cluster 规定了每个主节点的 epoch 都不可以相同. 而一个节点只会去相信拥有更大 configEpoch 的节点声称的信息, 因为更大的epoch代表更新的集群信息。所以，当 node 每次从其他 node 接收到数据包时，如果发现 sender 的epoch值比自己的大，那么当前 node 将自己的 currentEpoch 设置为 sender 的 epoch。
+    
+    有可能出现这种情况，在迁移 slot 或者使用 cluster failover 的时候, 如果多个节点同时 bump epoch, 就有可能出现多个节点拥有同一个 epoch, cluster 的处理方法是将 nodeid 小的那一个节点取到更大的 epoch，更新 currentEpoch 和 configEpoch。
+
+    */
+
     
     //在clusterHandleConfigEpochCollision中会自增，也可以在clusterProcessPacket更新    
     //slave要求其他master进行投票的时候，也会在clusterHandleSlaveFailover自增

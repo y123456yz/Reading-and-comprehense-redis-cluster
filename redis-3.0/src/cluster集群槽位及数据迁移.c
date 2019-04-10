@@ -149,4 +149,25 @@ f1566757b261fd4305882f607df6586c3b944f52 10.2.4.5:7004 slave 86ede7388b40eec6c22
 127.0.0.1:7006> DBSIZE
 (integer) 46
 127.0.0.1:7006> quit   从42变为了46，因为迁移了4条给7001节点
+
+
+
+
+
+slot shard
+从哪儿到哪儿迁移几个 slot
+
+redis-cli --cluster reshard <host>:<port> --cluster-from <node-id> --cluster-to <node-id> --cluster-slots <number of slots> --cluster-yes
+如：
+
+redis-cli --cluster reshard 127.0.0.1:7000 --cluster-to cac86706c8f11f9df3a0f5a1c896a1a1bdf88b31 --cluster-from all --cluster-slots 50
+cluster addnode
+往集群中特定的 master 添加 slave 节点
+
+redis-cli --cluster add-node 127.0.0.1:7006 127.0.0.1:7000 --cluster-slave --cluster-master-id 3c3a0c74aae0b56170ccb03a76b60cfe7dc1912e
+cluster delnode
+slave 节点可以直接删除，但是 master 节点删除时不能有 slot，否则会报错。
+
+redis-cli --cluster del-node 127.0.0.1:7000 `<node-id>`
+
 */

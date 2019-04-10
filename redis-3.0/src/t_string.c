@@ -356,6 +356,7 @@ void setCommand(redisClient *c) {
     setGenericCommand(c,flags,c->argv[1],c->argv[2],expire,unit,NULL,NULL);
 }
 
+//分布式锁SETNX+GETSET，见http://www.cnblogs.com/0201zcr/p/5942748.html#3821492
 void setnxCommand(redisClient *c) {
     c->argv[2] = tryObjectEncoding(c->argv[2]);
     setGenericCommand(c,REDIS_SET_NX,c->argv[1],c->argv[2],NULL,0,shared.cone,shared.czero);

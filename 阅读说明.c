@@ -1,16 +1,16 @@
-# reading  
-redis阅读理解，带详细注释   
-   
-nginx高并发设计优秀思想应用于其他高并发代理中间件:   
+# reading    
+redis阅读理解，带详细注释     
+    
+nginx高并发设计优秀思想应用于其他高并发代理中间件:     
 ===================================   
   * [高性能 -Nginx 多进程高并发、低时延、高可靠机制在百万级缓存 (redis、memcache) 代理中间件中的应用](https://xie.infoq.cn/article/2ee961483c66a146709e7e861)  
-    
+      
 redis、nginx、memcache、twemproxy、mongodb等更多中间件，分布式系统，高性能服务端核心思想实现博客:   
 ===================================     
   * [中间件、高性能服务器、分布式存储等(redis、memcache、pika、rocksdb、mongodb、wiredtiger、高性能代理中间件)二次开发、性能优化，逐步整理文档说明并配合demo指导](https://github.com/y123456yz/middleware_development_learning)    
-     
-    
-    
+       
+      
+      
 说明
 ===================================  
 本份代码从https://github.com/huangz1990/redis-3.0-annotated clone下来，然后自己添加自己的理解，再次基础上增加函数调用流程注释。
@@ -18,15 +18,15 @@ redis、nginx、memcache、twemproxy、mongodb等更多中间件，分布式系�
 
 阅读工具source insight,如果中文乱码，按照source insight configure目录中说明操作  
 本代码解决了huangz1990原始代码source insight中文乱码问题  
-
-
-
+    
+   
+   
 阅读进度：
 ===================================  
 本代码对redis源码主要功能进行了详细注释，并加上了自己的理解。redis源码基本通读完毕，并注释添加了相关函数的调用流程。    
 cluster集群cluster、redis节点扩容、数据迁移等功能重新梳理分析    
-
-
+     
+    
 问题及改造点： 
 ===================================  
 
